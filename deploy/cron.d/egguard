@@ -1,0 +1,11 @@
+# EgGuard — toolbox cron schedule
+# ================================
+# Install at:  /var/lib/enforcegate-toolbox/cron.d/egguard
+# Edit via:    eghost toolbox cron edit
+#
+# The UT1 Capitole feed refreshes 2–3 times per week, so a daily run is plenty.
+# Times are UTC unless ENFORCEGATE_TOOLBOX_TZ is set in the bundle's .env.
+#
+# Format: min hour dom mon dow  command
+#
+15 3 * * * python3 /var/lib/enforcegate-toolbox/repos/egguard/scripts/egguard refresh

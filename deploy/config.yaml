@@ -1,0 +1,122 @@
+# EgGuard — configuration template
+# =================================
+# Copy to:  /var/lib/enforcegate-toolbox/config.yaml
+# (or pass a path with `egguard --config /path/to/config.yaml`)
+#
+# Every key is OPTIONAL. EgGuard ships working defaults for all of them,
+# aligned with the EnforceGate vX toolbox shared-volume layout.
+# Run `egguard list` after editing to see the action resolved per category.
+# ---------------------------------------------------------------------------
+
+
+# === Source =================================================================
+
+# Base URL of the UT1 Capitole per-category tarballs.
+# Change only if you mirror the feed locally (recommended for large or
+# air-gapped deployments — rsync rsync://ftp.ut-capitole.fr/blacklist).
+base_url: "http://dsi.ut-capitole.fr/blacklists/download"
+
+
+# === Output paths (inside the toolbox container) ============================
+
+# Domain lists — must be the shared volume's lists/ dir so the engine sees them.
+lists_dir: "/etc/enforcegate-shared/lists"
+
+# Generated policies — must be the shared volume's policies/ dir.
+policies_dir: "/etc/enforcegate-shared/policies"
+
+# Download cache (ETag / Last-Modified / sha256). Lives on the toolbox's own
+# writable volume so it survives container recreation.
+state_dir: "/var/lib/enforcegate-toolbox/state/egguard"
+
+
+# === Policy generation ======================================================
+
+# Two-digit precedence prefix for generated .policy files. Lower numbers are
+# evaluated first; keep this ABOVE your operator-authored override rules so
+# your own allow/deny rules win.  Default "60"  ->  60-ut1-<category>.policy
+policy_prefix: "60"
+
+# Default action for any category without an explicit override below.
+# Valid: deny | warn | aup | permit
+# If omitted, EgGuard uses the per-category suggestion from its catalogue.
+default_action: deny
+
+# Per-category action overrides.  Run `egguard list` for the full name list.
+actions:
+  # --- Whitelists: permit rather than block -------------------------------
+  child:           permit     # UT1 list of sites safe for young children
+  liste_bu:        permit     # university-library whitelist
+  examen_pix:      permit     # French PIX-exam allow list
+  associations_religieuses: permit
+  bank:            permit
+  financial:       permit
+  cleaning:        permit
+  update:          permit
+
+  # --- Warn-with-proceed: ambiguous, let users acknowledge ----------------
+  press:           warn
+  blog:            warn
+  forums:          warn
+  social_networks: warn
+  audio-video:     warn
+  radio:           warn
+  games:           warn
+  shopping:        warn
+  jobsearch:       warn
+  sports:          warn
+
+  # --- Hard deny: clear-cut threat / policy categories --------------------
+  adult:           deny
+  malware:         deny
+  phishing:        deny
+  cryptojacking:   deny
+  hacking:         deny
+  ddos:            deny
+  agressif:        deny
+  dangerous_material: deny
+  drogue:          deny
+  warez:           deny
+  gambling:        deny
+  redirector:      deny
+  strict_redirector: deny
+  strong_redirector: deny
+  vpn:             deny
+  doh:             deny
+  stalkerware:     deny
+  residential-proxies: deny
+  shortener:       deny
+  publicite:       deny
+
+
+# === Category selection =====================================================
+
+# Process ONLY these categories (empty = all). Overrides `skip` when non-empty.
+# include:
+#   - adult
+#   - malware
+#   - phishing
+include: []
+
+# Skip these categories entirely.
+skip:
+  - examen_pix      # only relevant during French PIX exams
+  - tricheur_pix    # idem
+
+
+# === HTTP / download ========================================================
+
+# Per-category download timeout in seconds. The largest archive (adult) is a
+# few MB; 120s is generous even on slow links.
+timeout: 120
+
+# Number of attempts per category before giving up (exponential backoff).
+retries: 3
+
+# Reject a downloaded list with fewer than this many domains (guards against a
+# truncated or empty download silently wiping a category).
+min_domains: 1
+
+# User-Agent sent upstream. Please keep attribution so the UT1 maintainers can
+# see who consumes their feed.
+user_agent: "EgGuard/1.0 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"

@@ -1,0 +1,34 @@
+EgGuard
+Copyright 2026 parsymonie (https://github.com/parsymonie) and the EgGuard contributors
+
+This product includes software developed by the EgGuard project,
+licensed under the Apache License, Version 2.0.
+
+------------------------------------------------------------------------
+Third-party data attribution
+------------------------------------------------------------------------
+
+EgGuard downloads and processes the blacklist categories published by the
+Université Toulouse Capitole (UT1), maintained by Fabrice Prigent.
+
+    Source:  https://dsi.ut-capitole.fr/blacklists/
+    License: Creative Commons Attribution-ShareAlike 4.0 International
+             (CC BY-SA 4.0)
+             https://creativecommons.org/licenses/by-sa/4.0/
+
+The UT1 data is NOT distributed as part of this repository. EgGuard
+retrieves it at runtime. Any redistribution of the downloaded lists — or
+of derivative lists produced from them — must comply with the terms of
+CC BY-SA 4.0, including attribution to the Université Toulouse Capitole
+and distribution of derivatives under the same license.
+
+EgGuard's own source code (the fetching, parsing, and policy-generation
+logic) is an independent work and is licensed under Apache-2.0; the
+ShareAlike obligation attaches to the UT1 data and its derivatives, not to
+this tooling.
+
+------------------------------------------------------------------------
+
+"EnforceGate" and "EnforceGate vX" are products of Exosys Sàrl. EgGuard is
+an independent, community-maintained tool and is not affiliated with or
+endorsed by Exosys Sàrl.

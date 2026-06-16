@@ -1,0 +1,121 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "egguard"
+version = "1.0.0"
+description = "Sync UT1 Capitole blacklist categories into EnforceGate vX."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.9"
+authors = [{ name = "parsymonie", email = "parsymonie@users.noreply.github.com" }]
+keywords = [
+    "enforcegate",
+    "secure-web-gateway",
+    "url-filtering",
+    "blacklist",
+    "ut1",
+    "squidguard",
+    "content-filtering",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Internet :: Proxy Servers",
+    "Topic :: Security",
+    "Topic :: System :: Networking :: Firewalls",
+]
+
+# Runtime dependencies are deliberately minimal: both are pre-installed in
+# the EnforceGate vX toolbox sidecar (py3-requests, py3-yaml), so EgGuard
+# runs there with no `pip install` step.
+dependencies = [
+    "requests>=2.25",
+    "PyYAML>=5.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/parsymonie/egguard"
+Repository = "https://github.com/parsymonie/egguard"
+Issues = "https://github.com/parsymonie/egguard/issues"
+"Upstream data" = "https://dsi.ut-capitole.fr/blacklists/"
+"EnforceGate vX" = "https://www.enforcegate.com/"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.9",
+    "types-requests",
+    "types-PyYAML",
+]
+
+[project.scripts]
+egguard = "egguard.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/egguard"]
+
+# --------------------------------------------------------------------------- #
+# Ruff — linting and formatting
+# --------------------------------------------------------------------------- #
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",  # line length handled by the formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["egguard"]
+
+# --------------------------------------------------------------------------- #
+# Mypy — static typing
+# --------------------------------------------------------------------------- #
+# Runtime supports 3.9+, but mypy analyses against 3.10 (its supported floor).
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unreachable = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+# The toolbox helper library is only present inside the sidecar.
+module = "enforcegate_toolbox.*"
+ignore_missing_imports = true
+
+# --------------------------------------------------------------------------- #
+# Pytest
+# --------------------------------------------------------------------------- #
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["egguard"]
+
+[tool.coverage.report]
+show_missing = true

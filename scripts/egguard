@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""EgGuard toolbox launcher.
+
+Runs EgGuard directly from a checked-out repository without requiring a
+``pip install`` step — which the EnforceGate vX toolbox discourages
+(musllinux wheel gaps on Alpine). It puts the repo's ``src/`` directory on
+``sys.path`` and dispatches to the CLI.
+
+Use this as the toolbox repo entrypoint:
+
+    eghost toolbox repo add egguard <url> --entrypoint scripts/egguard
+
+or invoke directly:
+
+    python3 /var/lib/enforcegate-toolbox/repos/egguard/scripts/egguard refresh
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Make the package importable when running straight from a clone.
+_SRC = Path(__file__).resolve().parent.parent / "src"
+if _SRC.is_dir():
+    sys.path.insert(0, str(_SRC))
+
+from egguard.cli import main  # noqa: E402  (path must be set first)
+
+if __name__ == "__main__":
+    sys.exit(main())
