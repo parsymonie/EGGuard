@@ -55,10 +55,14 @@ class _ToolboxBridge:
         self._log = log
 
     def write_list(self, path: Path, domains: list[str]) -> None:
-        self._lists.write(str(path), domains)
+        # The toolbox library owns the shared lists dir and appends the
+        # ``.list`` extension itself, so it wants the bare stem with no
+        # separators and no suffix.
+        self._lists.write(path.stem, domains)
 
     def write_policy(self, path: Path, text: str) -> None:
-        self._policies.write(str(path), text)
+        # Same contract as lists.write: bare stem, the library adds ``.policy``.
+        self._policies.write(path.stem, text)
 
     def reload(self) -> None:
         self._engine.reload()
