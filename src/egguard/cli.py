@@ -1,9 +1,9 @@
-"""Command-line interface for EgGuard.
+"""Command-line interface for EGGuard.
 
 Subcommands:
     refresh     download categories, write lists/policies, reload engine
     list        print the category catalogue and resolved actions
-    version     print the EgGuard version
+    version     print the EGGuard version
 """
 
 from __future__ import annotations
@@ -35,7 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
         prog="egguard",
         description="Sync UT1 Capitole blacklist categories into EnforceGate vX.",
     )
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
     parser.add_argument(
         "-c",
         "--config",
@@ -43,7 +45,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=_DEFAULT_CONFIG,
         help="path to config.yaml (default: %(default)s)",
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="enable debug logging")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="enable debug logging"
+    )
 
     sub = parser.add_subparsers(dest="command")
 
@@ -63,7 +67,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="download and parse, but write nothing and do not reload",
     )
 
-    sub.add_parser("list", help="show the category catalogue and resolved actions")
+    sub.add_parser(
+        "list", help="show the category catalogue and resolved actions"
+    )
     sub.add_parser("version", help="print version and exit")
 
     return parser
@@ -117,7 +123,9 @@ def _cmd_list(cfg: Config) -> int:
     width = max(len(c.name) for c in catalogue.CATALOGUE)
     for category in catalogue.CATALOGUE:
         action = resolve_action(category, cfg)
-        print(f"{category.name:<{width}}  {action.value:<7}  {category.description}")
+        print(
+            f"{category.name:<{width}}  {action.value:<7}  {category.description}"
+        )
     return EXIT_OK
 
 

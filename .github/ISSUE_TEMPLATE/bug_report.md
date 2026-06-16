@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with EgGuard
+about: Report a problem with EGGuard
 title: "[bug] "
 labels: bug
 ---
@@ -8,7 +8,7 @@ labels: bug
 **Describe the bug**
 A clear and concise description of what went wrong.
 
-**EgGuard version**
+**EGGuard version**
 Output of `egguard version`:
 
 ```

@@ -16,7 +16,9 @@ def test_state_roundtrip(tmp_path: Path) -> None:
     store = StateStore(tmp_path)
     assert store.load("adult") == CategoryState()  # blank when absent
 
-    store.save("adult", CategoryState(etag='"abc"', sha256="deadbeef", domain_count=42))
+    store.save(
+        "adult", CategoryState(etag='"abc"', sha256="deadbeef", domain_count=42)
+    )
     loaded = store.load("adult")
     assert loaded.etag == '"abc"'
     assert loaded.sha256 == "deadbeef"
@@ -56,7 +58,9 @@ def test_select_skip_excludes() -> None:
 def test_resolve_action_priority() -> None:
     adult = get("adult")
     # 1. explicit override wins
-    cfg = Config(actions={"adult": Disposition.WARN}, default_action=Disposition.PERMIT)
+    cfg = Config(
+        actions={"adult": Disposition.WARN}, default_action=Disposition.PERMIT
+    )
     assert resolve_action(adult, cfg) is Disposition.WARN
     # 2. default_action when no override
     cfg = Config(default_action=Disposition.PERMIT)

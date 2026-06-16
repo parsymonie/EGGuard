@@ -77,7 +77,9 @@ class RefreshSummary:
         )
 
 
-def select_categories(cfg: Config, explicit: list[str] | None) -> list[Category]:
+def select_categories(
+    cfg: Config, explicit: list[str] | None
+) -> list[Category]:
     """Resolve which categories to process.
 
     Priority: explicit CLI selection > config ``include`` > config ``skip``.
@@ -93,7 +95,8 @@ def select_categories(cfg: Config, explicit: list[str] | None) -> list[Category]
         unknown = wanted - set(catalogue.all_names())
         if unknown:
             _log.warning(
-                "config 'include' names unknown categories: %s", ", ".join(sorted(unknown))
+                "config 'include' names unknown categories: %s",
+                ", ".join(sorted(unknown)),
             )
         return [c for c in catalogue.CATALOGUE if c.name in wanted]
 
@@ -152,27 +155,39 @@ class Refresher:
             fetched = self._fetcher.fetch(category.name, state)
         except NotModified:
             return CategoryResult(
-                category.name, Outcome.UNCHANGED, state.domain_count, "304 Not Modified"
+                category.name,
+                Outcome.UNCHANGED,
+                state.domain_count,
+                "304 Not Modified",
             )
         except FetchError as exc:
-            return CategoryResult(category.name, Outcome.FAILED, message=str(exc))
+            return CategoryResult(
+                category.name, Outcome.FAILED, message=str(exc)
+            )
 
         sha256 = hashlib.sha256(fetched.content).hexdigest()
         if sha256 == state.sha256:
             return CategoryResult(
-                category.name, Outcome.UNCHANGED, state.domain_count, "content unchanged"
+                category.name,
+                Outcome.UNCHANGED,
+                state.domain_count,
+                "content unchanged",
             )
 
         try:
             domains = extract_domains(fetched.content)
         except ParseError as exc:
-            return CategoryResult(category.name, Outcome.FAILED, message=str(exc))
+            return CategoryResult(
+                category.name, Outcome.FAILED, message=str(exc)
+            )
 
         if len(domains) < self._cfg.min_domains:
             return CategoryResult(
                 category.name,
                 Outcome.FAILED,
-                message=(f"only {len(domains)} domains (min {self._cfg.min_domains}) — rejected"),
+                message=(
+                    f"only {len(domains)} domains (min {self._cfg.min_domains}) — rejected"
+                ),
             )
 
         if not self._dry_run:
@@ -191,7 +206,9 @@ class Refresher:
 
     def _write(self, category: Category, domains: list[str]) -> None:
         list_path = self._cfg.lists_dir / category.list_filename
-        policy_path = self._cfg.policies_dir / category.policy_filename(self._cfg.policy_prefix)
+        policy_path = self._cfg.policies_dir / category.policy_filename(
+            self._cfg.policy_prefix
+        )
         action = resolve_action(category, self._cfg)
 
         self._bridge.write_list(list_path, domains)
@@ -211,7 +228,9 @@ class Refresher:
 
 def _log_result(result: CategoryResult) -> None:
     if result.outcome is Outcome.UPDATED:
-        _log.info("%s: updated (%s domains)", result.name, f"{result.domain_count:,}")
+        _log.info(
+            "%s: updated (%s domains)", result.name, f"{result.domain_count:,}"
+        )
     elif result.outcome is Outcome.UNCHANGED:
         _log.info("%s: unchanged (%s)", result.name, result.message)
     else:

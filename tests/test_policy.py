@@ -16,7 +16,10 @@ def test_render_contains_expected_fields() -> None:
         action=Disposition.DENY,
     )
     assert "ut1-adult: {" in text
-    assert "match-domain-list: /etc/enforcegate-shared/lists/ut1-adult.list" in text
+    assert (
+        "match-domain-list: /etc/enforcegate-shared/lists/ut1-adult.list"
+        in text
+    )
     assert "action: deny" in text
     assert "application: https" in text
     assert "description: Adult content" in text
@@ -25,15 +28,23 @@ def test_render_contains_expected_fields() -> None:
 
 def test_action_override_is_respected() -> None:
     cat = Category("press", "News and press", Disposition.WARN)
-    text = render_policy(cat, list_path=Path("/x/ut1-press.list"), action=Disposition.PERMIT)
+    text = render_policy(
+        cat, list_path=Path("/x/ut1-press.list"), action=Disposition.PERMIT
+    )
     assert "action: permit" in text
 
 
 def test_description_braces_are_sanitised() -> None:
     cat = Category("weird", "has {braces} and\nnewline", Disposition.DENY)
-    text = render_policy(cat, list_path=Path("/x.list"), action=Disposition.DENY)
+    text = render_policy(
+        cat, list_path=Path("/x.list"), action=Disposition.DENY
+    )
     # The single-line value must not contain raw braces or newlines that
     # would break the policy block.
-    desc_line = next(line for line in text.splitlines() if line.strip().startswith("description:"))
+    desc_line = next(
+        line
+        for line in text.splitlines()
+        if line.strip().startswith("description:")
+    )
     assert "{" not in desc_line
     assert "}" not in desc_line

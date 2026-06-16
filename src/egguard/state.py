@@ -1,6 +1,6 @@
 """Per-category download state.
 
-EgGuard records the ETag, Last-Modified header, content hash, and domain
+EGGuard records the ETag, Last-Modified header, content hash, and domain
 count of the last successful download for every category. This lets it
 issue conditional HTTP requests and skip writing files when nothing has
 changed, which keeps load off the UT1 servers and avoids needless engine

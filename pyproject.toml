@@ -34,7 +34,7 @@ classifiers = [
 ]
 
 # Runtime dependencies are deliberately minimal: both are pre-installed in
-# the EnforceGate vX toolbox sidecar (py3-requests, py3-yaml), so EgGuard
+# the EnforceGate vX toolbox sidecar (py3-requests, py3-yaml), so EGGuard
 # runs there with no `pip install` step.
 dependencies = [
     "requests>=2.25",
@@ -67,8 +67,9 @@ packages = ["src/egguard"]
 # --------------------------------------------------------------------------- #
 # Ruff — linting and formatting
 # --------------------------------------------------------------------------- #
+# The Google Python Style Guide caps lines at 80 columns.
 [tool.ruff]
-line-length = 100
+line-length = 80
 target-version = "py39"
 src = ["src", "tests"]
 
@@ -84,7 +85,9 @@ select = [
     "RUF",  # ruff-specific
 ]
 ignore = [
-    "E501",  # line length handled by the formatter
+    # Long URLs and string literals may exceed 80 columns, which the Google
+    # style guide explicitly permits; code is wrapped to 80 by the formatter.
+    "E501",
 ]
 
 [tool.ruff.lint.isort]

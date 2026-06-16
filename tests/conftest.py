@@ -8,7 +8,9 @@ import tarfile
 import pytest
 
 
-def make_tarball(category: str, domains: list[str], *, with_urls: bool = True) -> bytes:
+def make_tarball(
+    category: str, domains: list[str], *, with_urls: bool = True
+) -> bytes:
     """Build a UT1-style ``<category>.tar.gz`` in memory.
 
     The archive contains ``<category>/domains`` and, optionally,
@@ -34,5 +36,13 @@ def make_tarball(category: str, domains: list[str], *, with_urls: bool = True) -
 def sample_tarball() -> bytes:
     return make_tarball(
         "adult",
-        ["example.com", "Bad-Site.NET", "  spaced.org  ", "", "# comment", "dup.com", "dup.com"],
+        [
+            "example.com",
+            "Bad-Site.NET",
+            "  spaced.org  ",
+            "",
+            "# comment",
+            "dup.com",
+            "dup.com",
+        ],
     )

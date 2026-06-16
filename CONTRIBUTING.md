@@ -1,6 +1,6 @@
-# Contributing to EgGuard
+# Contributing to EGGuard
 
-Thanks for your interest in improving EgGuard. This is a small, focused tool,
+Thanks for your interest in improving EGGuard. This is a small, focused tool,
 so the contribution process is light.
 
 ## Development setup
@@ -28,7 +28,7 @@ All four must pass. New behaviour should come with tests.
 ## Guidelines
 
 - **Keep runtime dependencies to `requests` and `PyYAML`.** Both are
-  pre-installed in the EnforceGate vX toolbox sidecar, which lets EgGuard run
+  pre-installed in the EnforceGate vX toolbox sidecar, which lets EGGuard run
   there without `pip install`. Adding a third runtime dependency needs a strong
   justification.
 - **Target Python 3.9+.** Use `from __future__ import annotations` so modern
@@ -48,7 +48,7 @@ description and a sensible default `Disposition`. Confirm the count and the
 ## Reporting issues
 
 Use the issue templates. For parsing or download problems, include the category
-name, the EgGuard version (`egguard version`), and the relevant log line.
+name, the EGGuard version (`egguard version`), and the relevant log line.
 
 ## Licensing of contributions
 

@@ -1,6 +1,6 @@
-# EgGuard architecture
+# EGGuard architecture
 
-A short tour of how EgGuard is put together, for contributors.
+A short tour of how EGGuard is put together, for contributors.
 
 ## Pipeline
 
@@ -48,7 +48,7 @@ failed, `2` could not start).
 ## Key design choices
 
 - **Two runtime dependencies only** (`requests`, `PyYAML`). Both ship in the
-  EnforceGate vX toolbox, so EgGuard runs there with no `pip install`. The
+  EnforceGate vX toolbox, so EGGuard runs there with no `pip install`. The
   `engine.py` bridge means the same code runs locally (writing files directly)
   and in the toolbox (using the helper library), without branching at call
   sites.

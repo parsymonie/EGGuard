@@ -23,7 +23,9 @@ def test_deduplicates() -> None:
 
 
 def test_strips_scheme_and_path() -> None:
-    tarball = make_tarball("x", ["https://host.com/some/path", "host2.com:8080"])
+    tarball = make_tarball(
+        "x", ["https://host.com/some/path", "host2.com:8080"]
+    )
     assert extract_domains(tarball) == ["host.com", "host2.com"]
 
 

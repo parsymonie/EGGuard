@@ -1,4 +1,4 @@
-# EgGuard — toolbox cron schedule
+# EGGuard — toolbox cron schedule
 # ================================
 # Install at:  /var/lib/enforcegate-toolbox/cron.d/egguard
 # Edit via:    eghost toolbox cron edit

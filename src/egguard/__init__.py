@@ -1,6 +1,6 @@
-"""EgGuard — sync UT1 Capitole blacklist categories into EnforceGate vX.
+"""EGGuard — sync UT1 Capitole blacklist categories into EnforceGate vX.
 
-EgGuard runs inside the EnforceGate vX toolbox sidecar. It downloads the
+EGGuard runs inside the EnforceGate vX toolbox sidecar. It downloads the
 Université Toulouse Capitole blacklist categories, converts each into an
 EnforceGate domain list and a matching ``.policy`` rule, and triggers a
 single engine reload.

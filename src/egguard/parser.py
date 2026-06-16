@@ -1,7 +1,7 @@
 """Extraction of domain entries from UT1 category tarballs.
 
 A UT1 tarball unpacks to ``<category>/domains`` (and optionally
-``<category>/urls`` and ``<category>/usage``). EgGuard reads the
+``<category>/urls`` and ``<category>/usage``). EGGuard reads the
 ``domains`` member, normalises each entry, and returns a de-duplicated,
 sorted list suitable for an EnforceGate ``match-domain-list`` directive.
 """
@@ -38,7 +38,9 @@ def extract_domains(tarball: bytes) -> list[str]:
             if member is None:
                 raise ParseError("no 'domains' file found in archive")
             if member.size > _MAX_UNCOMPRESSED_BYTES:
-                raise ParseError(f"'domains' member is implausibly large ({member.size} bytes)")
+                raise ParseError(
+                    f"'domains' member is implausibly large ({member.size} bytes)"
+                )
             handle = archive.extractfile(member)
             if handle is None:
                 raise ParseError("could not read 'domains' member")

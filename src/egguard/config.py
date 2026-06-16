@@ -1,7 +1,7 @@
-"""Configuration loading for EgGuard.
+"""Configuration loading for EGGuard.
 
 Configuration is a single YAML file. Every key is optional; sensible
-defaults are baked in so EgGuard runs with no config at all. The defaults
+defaults are baked in so EGGuard runs with no config at all. The defaults
 target the EnforceGate vX toolbox sidecar's shared-volume layout.
 """
 
@@ -26,7 +26,7 @@ DEFAULT_POLICY_PREFIX = "60"
 DEFAULT_TIMEOUT = 120
 DEFAULT_RETRIES = 3
 DEFAULT_MIN_DOMAINS = 1
-DEFAULT_USER_AGENT = "EgGuard/1.0 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
+DEFAULT_USER_AGENT = "EGGuard/1.0 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
 
 
 class ConfigError(ValueError):
@@ -35,7 +35,7 @@ class ConfigError(ValueError):
 
 @dataclass(slots=True)
 class Config:
-    """Resolved EgGuard configuration."""
+    """Resolved EGGuard configuration."""
 
     base_url: str = DEFAULT_BASE_URL
     lists_dir: Path = DEFAULT_LISTS_DIR
@@ -129,7 +129,9 @@ def _parse_action(value: Any, source: Path) -> Disposition | None:
         return Disposition(str(value))
     except ValueError as exc:
         valid = ", ".join(d.value for d in Disposition)
-        raise ConfigError(f"{source}: invalid action {value!r}; expected one of: {valid}") from exc
+        raise ConfigError(
+            f"{source}: invalid action {value!r}; expected one of: {valid}"
+        ) from exc
 
 
 def _parse_actions(value: Any, source: Path) -> dict[str, Disposition]:
@@ -137,7 +139,9 @@ def _parse_actions(value: Any, source: Path) -> dict[str, Disposition]:
         return {}
     if not isinstance(value, dict):
         raise ConfigError(f"{source}: 'actions' must be a mapping")
-    return {str(name): _require_action(act, source) for name, act in value.items()}
+    return {
+        str(name): _require_action(act, source) for name, act in value.items()
+    }
 
 
 def _require_action(value: Any, source: Path) -> Disposition:
@@ -150,6 +154,8 @@ def _require_action(value: Any, source: Path) -> Disposition:
 def _parse_str_list(value: Any, key: str, source: Path) -> list[str]:
     if value is None:
         return []
-    if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+    if not isinstance(value, list) or not all(
+        isinstance(v, str) for v in value
+    ):
         raise ConfigError(f"{source}: '{key}' must be a list of strings")
     return list(value)

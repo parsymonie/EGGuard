@@ -70,7 +70,9 @@ class Fetcher:
 
         for attempt in range(1, self._retries + 1):
             try:
-                resp = self._session.get(url, headers=headers, timeout=self._timeout)
+                resp = self._session.get(
+                    url, headers=headers, timeout=self._timeout
+                )
                 if resp.status_code == 304:
                     raise NotModified
                 resp.raise_for_status()

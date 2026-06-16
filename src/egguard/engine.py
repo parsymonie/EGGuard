@@ -1,6 +1,6 @@
 """Bridge to the EnforceGate toolbox helper library.
 
-Inside the toolbox sidecar, EgGuard uses the bundled
+Inside the toolbox sidecar, EGGuard uses the bundled
 ``enforcegate_toolbox`` package to write lists and policies into the
 shared volume and to trigger an engine reload. Outside the toolbox (local
 development, CI, ``--dry-run``), that package is absent, so this module
@@ -23,7 +23,7 @@ _log = logging.getLogger("egguard.engine")
 
 @runtime_checkable
 class EngineBridge(Protocol):
-    """The operations EgGuard needs from its environment."""
+    """The operations EGGuard needs from its environment."""
 
     available: bool
     """True when the real toolbox helper library is in use."""

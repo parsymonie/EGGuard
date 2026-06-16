@@ -1,9 +1,9 @@
-# EgGuard — configuration template
+# EGGuard — configuration template
 # =================================
 # Copy to:  /var/lib/enforcegate-toolbox/config.yaml
 # (or pass a path with `egguard --config /path/to/config.yaml`)
 #
-# Every key is OPTIONAL. EgGuard ships working defaults for all of them,
+# Every key is OPTIONAL. EGGuard ships working defaults for all of them,
 # aligned with the EnforceGate vX toolbox shared-volume layout.
 # Run `egguard list` after editing to see the action resolved per category.
 # ---------------------------------------------------------------------------
@@ -39,7 +39,7 @@ policy_prefix: "60"
 
 # Default action for any category without an explicit override below.
 # Valid: deny | warn | aup | permit
-# If omitted, EgGuard uses the per-category suggestion from its catalogue.
+# If omitted, EGGuard uses the per-category suggestion from its catalogue.
 default_action: deny
 
 # Per-category action overrides.  Run `egguard list` for the full name list.
@@ -119,4 +119,4 @@ min_domains: 1
 
 # User-Agent sent upstream. Please keep attribution so the UT1 maintainers can
 # see who consumes their feed.
-user_agent: "EgGuard/1.0 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
+user_agent: "EGGuard/1.0 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"

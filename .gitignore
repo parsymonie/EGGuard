@@ -27,7 +27,7 @@ coverage.xml
 *.swp
 .DS_Store
 
-# EgGuard runtime artefacts (never commit downloaded data or state)
+# EGGuard runtime artefacts (never commit downloaded data or state)
 /state/
 *.list
 *.policy
