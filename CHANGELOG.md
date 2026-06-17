@@ -6,8 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-06-17
+
 ### Added
 
+- A curses category picker (`egguard select`): browse the catalogue, toggle
+  categories with space, optionally pick an action, then install/update the
+  selection. An alternative to the `install`/`update` verbs.
 - Package-manager style CLI: `install CATEGORY…`, `update [CATEGORY…]`
   (refreshes the installed set; the cron command), `remove CATEGORY…`, and
   `list` (now marks installed categories). Categories are positional.
@@ -66,5 +71,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Apache-2.0 license for the code; `NOTICE` carrying the upstream CC BY-SA 4.0
   attribution for the UT1 data.
 
-[Unreleased]: https://github.com/parsymonie/egguard/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/parsymonie/egguard/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/parsymonie/egguard/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/parsymonie/egguard/releases/tag/v1.0.0

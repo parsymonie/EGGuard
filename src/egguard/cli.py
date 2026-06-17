@@ -4,6 +4,7 @@ Subcommands:
     install     install categories (download, write list/policy, reload)
     update      refresh installed categories to the latest UT1 data
     remove      delete a category's list/policy and reload
+    select      pick categories in a curses UI, then install/update them
     list        print the catalogue, marking installed categories
     version     print the EGGuard version
 """
@@ -128,6 +129,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_dry_run(remove)
 
+    select = sub.add_parser(
+        "select", help="pick categories in a curses UI, then install/update"
+    )
+    add_dry_run(select)
+
     sub.add_parser("list", help="show the catalogue, marking installed")
     sub.add_parser("version", help="print version and exit")
 
@@ -182,6 +188,8 @@ def _run(argv: list[str] | None) -> int:
         return _cmd_update(cfg, args)
     if command == "remove":
         return _cmd_remove(cfg, args)
+    if command == "select":
+        return _cmd_select(cfg, args)
 
     parser.error(f"unknown command: {command}")
 
@@ -346,6 +354,34 @@ def _cmd_remove(cfg: Config, args: argparse.Namespace) -> int:
             logging.error("engine reload failed: %s", exc)
             return EXIT_PARTIAL
     return EXIT_OK
+
+
+def _cmd_select(cfg: Config, args: argparse.Namespace) -> int:
+    import curses
+
+    from . import tui
+
+    store = StateStore(cfg.state_dir)
+    try:
+        selection = tui.pick(list(catalogue.CATALOGUE), store)
+    except curses.error as exc:
+        logging.critical(
+            "cannot open the selector (no interactive terminal?): %s", exc
+        )
+        return EXIT_FATAL
+
+    if selection is None or not selection.names:
+        logging.info("nothing selected")
+        return EXIT_OK
+
+    selected = _select_named(selection.names)
+    return _do_refresh(
+        cfg,
+        selected,
+        store,
+        action_override=selection.action,
+        dry_run=args.dry_run,
+    )
 
 
 if __name__ == "__main__":

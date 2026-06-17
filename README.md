@@ -127,6 +127,7 @@ Commands:
   install CATEGORY ...     download, write list/policy, reload (add categories)
   update [CATEGORY ...]    refresh installed categories (default: all installed)
   remove CATEGORY ...      delete a category's list/policy and reload
+  select                   pick categories in a curses UI, then install/update
   list                     print the catalogue, marking installed categories
   version                  print the version
 
@@ -141,6 +142,10 @@ manager: `install` adds categories, `update` refreshes the ones already
 installed (this is the cron command), and `remove` drops them. An `--action`
 given on `install` is remembered, so a later `update` keeps it; otherwise it
 wins over config and catalogue suggestions for that run.
+
+Prefer a menu? `egguard select` opens a curses picker: arrow keys to move,
+`space` to toggle a category, `a` to cycle the action, `enter` to install the
+selection (`q` cancels). Pre-checked rows are the already-installed categories.
 
 Examples:
 
