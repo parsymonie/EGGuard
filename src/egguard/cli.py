@@ -143,8 +143,16 @@ def _cmd_refresh(cfg: Config, args: argparse.Namespace) -> int:
         logging.warning("no categories selected — check include/skip in config")
         return EXIT_OK
 
-    # Ensure output directories exist (unless dry-run).
-    if not dry_run:
+    bridge = get_bridge()
+    if not bridge.available and not dry_run:
+        logging.warning(
+            "enforcegate_toolbox library not found — writing files directly "
+            "and skipping engine reload (run inside the toolbox for full operation)"
+        )
+
+    # In toolbox mode the helper library owns and provisions the shared
+    # lists/rules.d dirs, so only the local fallback needs to create them.
+    if not dry_run and not bridge.available:
         for directory in (cfg.lists_dir, cfg.policies_dir):
             try:
                 directory.mkdir(parents=True, exist_ok=True)
@@ -155,13 +163,6 @@ def _cmd_refresh(cfg: Config, args: argparse.Namespace) -> int:
                     exc,
                 )
                 return EXIT_FATAL
-
-    bridge = get_bridge()
-    if not bridge.available and not dry_run:
-        logging.warning(
-            "enforcegate_toolbox library not found — writing files directly "
-            "and skipping engine reload (run inside the toolbox for full operation)"
-        )
 
     fetcher = Fetcher(
         cfg.base_url,

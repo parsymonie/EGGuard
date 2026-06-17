@@ -34,8 +34,8 @@ classifiers = [
 ]
 
 # Runtime dependencies are deliberately minimal: both are pre-installed in
-# the EnforceGate vX toolbox sidecar (py3-requests, py3-yaml), so EGGuard
-# runs there with no `pip install` step.
+# the EnforceGate vX toolbox sidecar (Debian python3-requests, python3-yaml
+# since 2026.32.0), so EGGuard runs there with no `pip install` step.
 dependencies = [
     "requests>=2.25",
     "PyYAML>=5.4",

@@ -2,9 +2,9 @@
 """EGGuard toolbox launcher.
 
 Runs EGGuard directly from a checked-out repository without requiring a
-``pip install`` step — which the EnforceGate vX toolbox discourages
-(musllinux wheel gaps on Alpine). It puts the repo's ``src/`` directory on
-``sys.path`` and dispatches to the CLI.
+``pip install`` step: the EnforceGate vX toolbox (Debian bookworm-slim since
+2026.32.0) already ships ``python3-requests`` and ``python3-yaml``. It puts the
+repo's ``src/`` directory on ``sys.path`` and dispatches to the CLI.
 
 Use this as the toolbox repo entrypoint:
 

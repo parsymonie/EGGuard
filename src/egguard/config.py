@@ -20,7 +20,10 @@ from .categories import Disposition
 # --------------------------------------------------------------------------- #
 DEFAULT_BASE_URL = "http://dsi.ut-capitole.fr/blacklists/download"
 DEFAULT_LISTS_DIR = Path("/etc/enforcegate-shared/lists")
-DEFAULT_POLICIES_DIR = Path("/etc/enforcegate-shared/policies")
+# EnforceGate vX 2026.32.0 renamed the shared policies dir to rules.d.
+# On older (< 2026.32.0) appliances, override with
+# policies_dir: /etc/enforcegate-shared/policies.
+DEFAULT_POLICIES_DIR = Path("/etc/enforcegate-shared/rules.d")
 DEFAULT_STATE_DIR = Path("/var/lib/enforcegate-toolbox/state/egguard")
 DEFAULT_POLICY_PREFIX = "60"
 DEFAULT_TIMEOUT = 120

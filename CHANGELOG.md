@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Default `policies_dir` is now `/etc/enforcegate-shared/rules.d` to match the
+  shared rules directory introduced in EnforceGate vX 2026.32.0. On older
+  appliances, set `policies_dir: /etc/enforcegate-shared/policies` in the config.
+- Documentation now reflects the Debian (bookworm-slim) toolbox shipped in
+  2026.32.0 and its `python3-requests` / `python3-yaml` packages.
+
+### Fixed
+
+- Toolbox bridge passes the bare list/policy name (no path, no extension) to
+  `enforcegate_toolbox.lists.write` / `policies.write`, which own the shared
+  dirs and add the extension themselves. Full paths were rejected and a passed
+  extension produced doubled names like `ut1-x.list.list`.
+- In toolbox mode EGGuard no longer tries to create the shared `lists`/`rules.d`
+  directories itself; the helper library owns and provisions them.
+
 ## [1.0.0] — 2026-06-16
 
 ### Added

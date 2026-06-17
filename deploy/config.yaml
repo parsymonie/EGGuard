@@ -22,8 +22,10 @@ base_url: "http://dsi.ut-capitole.fr/blacklists/download"
 # Domain lists — must be the shared volume's lists/ dir so the engine sees them.
 lists_dir: "/etc/enforcegate-shared/lists"
 
-# Generated policies — must be the shared volume's policies/ dir.
-policies_dir: "/etc/enforcegate-shared/policies"
+# Generated policies — must be the shared volume's rules dir. EnforceGate vX
+# 2026.32.0 renamed this to rules.d; on older appliances use
+# /etc/enforcegate-shared/policies instead.
+policies_dir: "/etc/enforcegate-shared/rules.d"
 
 # Download cache (ETag / Last-Modified / sha256). Lives on the toolbox's own
 # writable volume so it survives container recreation.

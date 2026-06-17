@@ -41,7 +41,7 @@ INFO engine reloaded — 63 categories updated.
                  │   5. engine.reload()  (once, at the end)  │ │ │
                  └───────────────────────────────────────────┼─┼─┘
                                                               ▼ ▼
-                            /etc/enforcegate-shared/{policies,lists}/
+                            /etc/enforcegate-shared/{rules.d,lists}/
                                                               │
                                                               ▼
                                               EnforceGate engine enforces
@@ -53,7 +53,7 @@ toolbox hands to the engine:
 | File | Location | Purpose |
 | ---- | -------- | ------- |
 | `ut1-<category>.list` | `/etc/enforcegate-shared/lists/` | one domain per line |
-| `60-ut1-<category>.policy` | `/etc/enforcegate-shared/policies/` | a single `match-domain-list` rule |
+| `60-ut1-<category>.policy` | `/etc/enforcegate-shared/rules.d/` | a single `match-domain-list` rule |
 
 Generated policies are named `ut1-<category>` so they are clearly attributed
 in the engine's audit log, and live at precedence `60-` by default — after any
@@ -80,9 +80,10 @@ ut1-adult: {
 
 ## Install
 
-EGGuard targets the EnforceGate vX toolbox, which ships Python 3 with
-`py3-requests` and `py3-yaml` already installed — so it runs there with **no
-`pip install` step**. Deliver it through the toolbox's git-repo path:
+EGGuard targets the EnforceGate vX toolbox. Since 2026.32.0 the toolbox runs
+Debian (bookworm-slim) and ships Python 3 with `python3-requests` and
+`python3-yaml` already installed, so EGGuard runs there with **no `pip install`
+step**. Deliver it through the toolbox's git-repo path:
 
 ```bash
 # On the EnforceGate host
