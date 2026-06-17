@@ -15,21 +15,28 @@ import argparse
 import logging
 import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from . import __version__
+from . import __version__, color
 from . import categories as catalogue
 from .categories import Action, Category
 from .config import Config, ConfigError
-from .engine import get_bridge
+from .engine import EngineBridge, get_bridge
 from .fetcher import Fetcher
 from .refresh import (
+    CategoryResult,
     Refresher,
+    RefreshSummary,
     remove_category,
     resolve_action,
     select_categories,
 )
 from .state import StateStore
+
+if TYPE_CHECKING:
+    from .tui import Selection
 
 # Exit codes
 EXIT_OK = 0
@@ -37,6 +44,14 @@ EXIT_PARTIAL = 1  # some categories failed
 EXIT_FATAL = 2  # could not start (bad config, unwritable volume, ...)
 
 _DEFAULT_CONFIG = Path("/var/lib/enforcegate-toolbox/config.yaml")
+
+
+class _PinkLogFormatter(logging.Formatter):
+    """Logging formatter that tints each line pink on a TTY (stderr)."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        return color.pink(super().format(record), sys.stderr)
+
 
 # Friendly aliases for the four engine actions, accepted by --action.
 _ACTION_ALIASES = {"block": Action.DENY, "allow": Action.PERMIT}
@@ -159,9 +174,11 @@ def _run(argv: list[str] | None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    handler = logging.StreamHandler()
+    handler.setFormatter(_PinkLogFormatter("%(levelname)s %(message)s"))
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(levelname)s %(message)s",
+        handlers=[handler],
     )
 
     # No subcommand: show help instead of doing anything side-effecting.
@@ -178,7 +195,7 @@ def _run(argv: list[str] | None) -> int:
         return EXIT_FATAL
 
     if command == "version":
-        print(f"egguard {__version__}")
+        print(color.pink(f"egguard {__version__}", sys.stdout))
         return EXIT_OK
     if command == "list":
         return _cmd_list(cfg)
@@ -205,11 +222,12 @@ def _cmd_list(cfg: Config) -> int:
             installed_action = None
         action = resolve_action(category, cfg, installed=installed_action)
         mark = "*" if store.exists(category.name) else " "
-        print(
+        line = (
             f"{mark} {category.name:<{width}}  {action.value:<7}  "
             f"{category.description}"
         )
-    print("\n* = installed")
+        print(color.pink(line, sys.stdout))
+    print(color.pink("\n* = installed", sys.stdout))
     return EXIT_OK
 
 
@@ -218,19 +236,17 @@ def _select_named(names: list[str]) -> list[Category]:
     return [catalogue.get(name) for name in names]
 
 
-def _do_refresh(
-    cfg: Config,
-    selected: list[Category],
-    store: StateStore,
-    *,
-    action_override: Action | None,
-    dry_run: bool,
-) -> int:
-    """Run the fetch/write/reload pipeline for *selected* and return the code."""
-    if not selected:
-        logging.warning("no categories selected")
-        return EXIT_OK
+def _actions_for(
+    selected: list[Category], action: Action | None
+) -> dict[str, Action]:
+    """Map every selected category to *action*, or empty when none was given."""
+    return {c.name: action for c in selected} if action is not None else {}
 
+
+def _build_pipeline(
+    cfg: Config, *, dry_run: bool
+) -> tuple[EngineBridge, Fetcher] | None:
+    """Set up the engine bridge and fetcher, or None on a fatal setup error."""
     bridge = get_bridge()
     if not bridge.available and not dry_run:
         logging.warning(
@@ -250,7 +266,7 @@ def _do_refresh(
                     directory,
                     exc,
                 )
-                return EXIT_FATAL
+                return None
 
     fetcher = Fetcher(
         cfg.base_url,
@@ -258,24 +274,17 @@ def _do_refresh(
         retries=cfg.retries,
         user_agent=cfg.user_agent,
     )
-    refresher = Refresher(
-        cfg,
-        fetcher,
-        store,
-        bridge,
-        dry_run=dry_run,
-        action_override=action_override,
-    )
+    return bridge, fetcher
 
-    summary = refresher.run(selected)
 
+def _report_summary(summary: RefreshSummary, *, dry_run: bool) -> int:
+    """Log the dry-run / failure tail of a run and return its exit code."""
     if dry_run:
         logging.info(
             "[dry-run] %d categor%s would change",
             len(summary.updated),
             "y" if len(summary.updated) == 1 else "ies",
         )
-
     if summary.failed:
         logging.error(
             "%d categor%s failed: %s",
@@ -284,8 +293,32 @@ def _do_refresh(
             ", ".join(r.name for r in summary.failed),
         )
         return EXIT_PARTIAL
-
     return EXIT_OK
+
+
+def _do_refresh(
+    cfg: Config,
+    selected: list[Category],
+    store: StateStore,
+    *,
+    actions: dict[str, Action],
+    dry_run: bool,
+) -> int:
+    """Run the fetch/write/reload pipeline for *selected* and return the code."""
+    if not selected:
+        logging.warning("no categories selected")
+        return EXIT_OK
+
+    built = _build_pipeline(cfg, dry_run=dry_run)
+    if built is None:
+        return EXIT_FATAL
+    bridge, fetcher = built
+
+    refresher = Refresher(
+        cfg, fetcher, store, bridge, dry_run=dry_run, actions=actions
+    )
+    summary = refresher.run(selected)
+    return _report_summary(summary, dry_run=dry_run)
 
 
 def _cmd_install(cfg: Config, args: argparse.Namespace) -> int:
@@ -296,7 +329,11 @@ def _cmd_install(cfg: Config, args: argparse.Namespace) -> int:
         logging.critical("unknown category: %s", exc.args[0])
         return EXIT_FATAL
     return _do_refresh(
-        cfg, selected, store, action_override=args.action, dry_run=args.dry_run
+        cfg,
+        selected,
+        store,
+        actions=_actions_for(selected, args.action),
+        dry_run=args.dry_run,
     )
 
 
@@ -318,7 +355,11 @@ def _cmd_update(cfg: Config, args: argparse.Namespace) -> int:
         logging.critical("unknown category: %s", exc.args[0])
         return EXIT_FATAL
     return _do_refresh(
-        cfg, selected, store, action_override=args.action, dry_run=args.dry_run
+        cfg,
+        selected,
+        store,
+        actions=_actions_for(selected, args.action),
+        dry_run=args.dry_run,
     )
 
 
@@ -362,26 +403,47 @@ def _cmd_select(cfg: Config, args: argparse.Namespace) -> int:
     from . import tui
 
     store = StateStore(cfg.state_dir)
+    summary_box: list[RefreshSummary] = []
+
+    def installer(
+        selection: Selection, progress: Callable[[int, int, str], None]
+    ) -> None:
+        built = _build_pipeline(cfg, dry_run=args.dry_run)
+        if built is None:
+            return
+        bridge, fetcher = built
+        refresher = Refresher(
+            cfg,
+            fetcher,
+            store,
+            bridge,
+            dry_run=args.dry_run,
+            actions=selection.actions,
+        )
+
+        def on_progress(done: int, total: int, result: CategoryResult) -> None:
+            progress(done, total, f"{result.name}: {result.outcome.value}")
+
+        summary_box.append(
+            refresher.run(
+                _select_named(selection.names), on_progress=on_progress
+            )
+        )
+
     try:
-        selection = tui.pick(list(catalogue.CATALOGUE), store)
+        applied = tui.pick(list(catalogue.CATALOGUE), store, installer)
     except curses.error as exc:
         logging.critical(
             "cannot open the selector (no interactive terminal?): %s", exc
         )
         return EXIT_FATAL
 
-    if selection is None or not selection.names:
+    if not applied:
         logging.info("nothing selected")
         return EXIT_OK
-
-    selected = _select_named(selection.names)
-    return _do_refresh(
-        cfg,
-        selected,
-        store,
-        action_override=selection.action,
-        dry_run=args.dry_run,
-    )
+    if not summary_box:
+        return EXIT_FATAL
+    return _report_summary(summary_box[0], dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

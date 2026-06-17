@@ -10,9 +10,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- A curses category picker (`egguard select`): browse the catalogue, toggle
-  categories with space, optionally pick an action, then install/update the
-  selection. An alternative to the `install`/`update` verbs.
+- A pink curses category picker (`egguard select`): browse the catalogue,
+  toggle categories with space, set a per-category action with `a`, then
+  install in place with a progress bar. An alternative to the verbs.
+- Pink CLI output for logs, `list` and `version`, suppressed when the stream
+  is not a terminal or when `NO_COLOR` is set (help keeps argparse's default).
 - Package-manager style CLI: `install CATEGORY…`, `update [CATEGORY…]`
   (refreshes the installed set; the cron command), `remove CATEGORY…`, and
   `list` (now marks installed categories). Categories are positional.

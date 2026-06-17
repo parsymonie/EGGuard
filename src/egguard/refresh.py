@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -172,24 +173,36 @@ class Refresher:
         bridge: EngineBridge,
         *,
         dry_run: bool = False,
-        action_override: Action | None = None,
+        actions: dict[str, Action] | None = None,
     ) -> None:
         self._cfg = cfg
         self._fetcher = fetcher
         self._store = store
         self._bridge = bridge
         self._dry_run = dry_run
-        self._action_override = action_override
+        # Per-category forced actions (e.g. from `--action` or the picker).
+        self._actions = actions or {}
 
-    def run(self, selected: list[Category]) -> RefreshSummary:
-        """Refresh every category in *selected* and reload once if needed."""
+    def run(
+        self,
+        selected: list[Category],
+        on_progress: Callable[[int, int, CategoryResult], None] | None = None,
+    ) -> RefreshSummary:
+        """Refresh every category in *selected* and reload once if needed.
+
+        *on_progress* (if given) is called as ``(done, total, result)`` after
+        each category, so a UI can drive a progress bar.
+        """
         summary = RefreshSummary()
         started = time.monotonic()
+        total = len(selected)
 
-        for category in selected:
+        for index, category in enumerate(selected, start=1):
             result = self._refresh_one(category)
             summary.results.append(result)
             _log_result(result)
+            if on_progress is not None:
+                on_progress(index, total, result)
 
         summary.elapsed_seconds = time.monotonic() - started
 
@@ -240,10 +253,11 @@ class Refresher:
                 ),
             )
 
+        override = self._actions.get(category.name)
         action = resolve_action(
             category,
             self._cfg,
-            override=self._action_override,
+            override=override,
             installed=_disposition_or_none(state.action),
         )
 
@@ -259,9 +273,7 @@ class Refresher:
             # Persist the action only when explicitly chosen on this run;
             # otherwise keep whatever the category was installed with.
             saved_action = (
-                self._action_override.value
-                if self._action_override is not None
-                else state.action
+                override.value if override is not None else state.action
             )
             self._store.save(
                 category.name,

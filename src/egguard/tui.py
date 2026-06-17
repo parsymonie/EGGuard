@@ -1,21 +1,24 @@
 """A small curses category picker for ``egguard select``.
 
 Lets the operator browse the catalogue, toggle which categories to install or
-update, and optionally pick an action to apply, as an alternative to naming
-categories on the command line. The curses loop only collects a selection; the
-caller runs the normal install/update pipeline with it.
+update, and set a per-category action, then runs the install in place with a
+progress bar (so the whole flow stays inside the curses UI). It is an
+alternative to naming categories on the command line.
 """
 
 from __future__ import annotations
 
 import contextlib
 import curses
-from dataclasses import dataclass
+import locale
+from collections.abc import Callable
+from dataclasses import dataclass, field
 
 from .categories import Action, Category
 from .state import StateStore
 
-# Actions the picker cycles through; ``None`` leaves it to config/catalogue.
+# Per-category actions are cycled with the `a` key; ``None`` leaves the action
+# to config/catalogue resolution.
 _ACTIONS: tuple[Action | None, ...] = (
     None,
     Action.DENY,
@@ -24,22 +27,46 @@ _ACTIONS: tuple[Action | None, ...] = (
     Action.PERMIT,
 )
 
+# A little pig with a curly tail, pure ASCII so it renders everywhere.
+_ART: tuple[str, ...] = (
+    r"     _____",
+    r"    /     \,~~",
+    r"   | o   o |     E G G u a r d",
+    r"   |  (..) |     UT1 category picker for EnforceGate vX",
+    r"    \_____/",
+    r"     ''  ''",
+)
+
+# A progress reporter: (done, total, message).
+ProgressFn = Callable[[int, int, str], None]
+
 
 @dataclass(slots=True)
 class Selection:
-    """The result of a picker session."""
+    """What the picker chose: which categories, and any per-category actions."""
 
     names: list[str]
-    action: Action | None
+    actions: dict[str, Action] = field(default_factory=dict)
 
 
-def pick(categories: list[Category], store: StateStore) -> Selection | None:
-    """Run the curses picker. Return the Selection, or None if cancelled.
+# Runs the actual install for a selection, reporting progress as it goes.
+Installer = Callable[["Selection", ProgressFn], None]
+
+
+def pick(
+    categories: list[Category], store: StateStore, installer: Installer
+) -> bool:
+    """Run the picker and, on confirm, install the selection in place.
+
+    Returns True if an install was applied, False if cancelled or nothing was
+    chosen.
 
     Raises:
         curses.error: if no interactive terminal is available.
     """
-    return curses.wrapper(_loop, categories, store)
+    # Honour the terminal's encoding so accented descriptions render.
+    locale.setlocale(locale.LC_ALL, "")
+    return bool(curses.wrapper(_loop, categories, store, installer))
 
 
 def action_label(action: Action | None) -> str:
@@ -65,6 +92,24 @@ def format_row(
         f"{pointer} {box} {inst} {category.name:<{name_width}}  "
         f"{effective:<7}  {category.description}"
     )
+
+
+def progress_bar(done: int, total: int, width: int) -> str:
+    """Render a text progress bar like ``[####----]  50%`` (pure, for testing)."""
+    width = max(1, width)
+    ratio = 1.0 if total <= 0 else max(0.0, min(1.0, done / total))
+    filled = int(ratio * width)
+    return (
+        "["
+        + "#" * filled
+        + "-" * (width - filled)
+        + f"] {int(ratio * 100):3d}%"
+    )
+
+
+def _cycle_action(current: Action | None) -> Action | None:
+    """Return the next action in the cycle after *current*."""
+    return _ACTIONS[(_ACTIONS.index(current) + 1) % len(_ACTIONS)]
 
 
 def _addline(
@@ -101,7 +146,7 @@ def _init_pink() -> int:
     if curses.can_change_color() and curses.COLORS > 16:
         pink = min(curses.COLORS - 1, 200)
         try:
-            curses.init_color(pink, 1000, 600, 760)  # oink
+            curses.init_color(pink, 1000, 600, 760)
             foreground = pink
         except curses.error:
             foreground = curses.COLOR_MAGENTA
@@ -109,42 +154,80 @@ def _init_pink() -> int:
     return 1
 
 
+def _run_install(
+    stdscr: curses.window,
+    pink: int,
+    selection: Selection,
+    installer: Installer,
+) -> None:
+    """Drive the install in place, drawing a progress bar after each category."""
+    total = len(selection.names)
+
+    def report(done: int, total_: int, message: str) -> None:
+        stdscr.erase()
+        _height, width = stdscr.getmaxyx()
+        _addline(
+            stdscr,
+            0,
+            0,
+            "Installing selected categories",
+            width,
+            pink | curses.A_BOLD,
+        )
+        bar = progress_bar(done, total_, max(10, width - 8))
+        _addline(stdscr, 2, 0, bar, width, pink)
+        _addline(stdscr, 3, 0, f"{done}/{total_}  {message}", width, pink)
+        stdscr.refresh()
+
+    report(0, total, "starting...")
+    installer(selection, report)
+
+    stdscr.erase()
+    _height, width = stdscr.getmaxyx()
+    _addline(stdscr, 0, 0, "Done. Press any key.", width, pink | curses.A_BOLD)
+    _addline(
+        stdscr,
+        2,
+        0,
+        progress_bar(total, total, max(10, width - 8)),
+        width,
+        pink,
+    )
+    stdscr.refresh()
+    stdscr.getch()
+
+
 def _loop(
     stdscr: curses.window,
     categories: list[Category],
     store: StateStore,
-) -> Selection | None:
+    installer: Installer,
+) -> bool:
     curses.curs_set(0)
     pink = curses.color_pair(_init_pink())
     selected = {c.name for c in categories if store.exists(c.name)}
+    chosen: dict[str, Action] = {}
     name_width = max((len(c.name) for c in categories), default=8)
-    action_idx = 0
     cursor = 0
     top = 0
 
     while True:
         stdscr.erase()
         height, width = stdscr.getmaxyx()
-        action = _ACTIONS[action_idx]
 
+        for idx, line in enumerate(_ART):
+            _addline(stdscr, idx, 0, line, width, pink | curses.A_BOLD)
+        instr_row = len(_ART)
         _addline(
             stdscr,
+            instr_row,
             0,
-            0,
-            "🐷 EGGuard — select categories",
-            width,
-            pink | curses.A_BOLD,
-        )
-        _addline(
-            stdscr,
-            1,
-            0,
-            "[space] toggle   [a] action   [enter] apply   [q] cancel",
+            "[space] toggle   [a] action (this row)   [enter] install   [q] cancel",
             width,
             pink,
         )
 
-        list_top = 3
+        list_top = instr_row + 2
         visible = max(1, height - list_top - 1)
         if cursor < top:
             top = cursor
@@ -157,23 +240,20 @@ def _loop(
                 category,
                 selected=category.name in selected,
                 installed=store.exists(category.name),
-                action=action,
+                action=chosen.get(category.name),
                 cursor=(i == cursor),
                 name_width=name_width,
             )
             attr = pink | (curses.A_REVERSE if i == cursor else curses.A_NORMAL)
             _addline(stdscr, list_top + (i - top), 0, row, width, attr)
 
-        footer = (
-            f"{len(selected)} selected / {len(categories)}   "
-            f"action: {action_label(action)}   oink oink"
-        )
+        footer = f"{len(selected)} selected / {len(categories)}"
         _addline(stdscr, height - 1, 0, footer, width, pink | curses.A_BOLD)
         stdscr.refresh()
 
         key = stdscr.getch()
         if key in (ord("q"), 27):  # q or ESC
-            return None
+            return False
         if key in (curses.KEY_UP, ord("k")):
             cursor = max(0, cursor - 1)
         elif key in (curses.KEY_DOWN, ord("j")):
@@ -193,7 +273,19 @@ def _loop(
             else:
                 selected.add(name)
         elif key in (ord("a"), ord("A")):
-            action_idx = (action_idx + 1) % len(_ACTIONS)
+            # Cycle the action for this row only.
+            name = categories[cursor].name
+            nxt = _cycle_action(chosen.get(name))
+            if nxt is None:
+                chosen.pop(name, None)
+            else:
+                chosen[name] = nxt
         elif key in (curses.KEY_ENTER, 10, 13):
             names = [c.name for c in categories if c.name in selected]
-            return Selection(names=names, action=action)
+            if not names:
+                return False
+            actions = {n: chosen[n] for n in names if n in chosen}
+            _run_install(
+                stdscr, pink, Selection(names=names, actions=actions), installer
+            )
+            return True

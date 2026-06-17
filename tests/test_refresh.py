@@ -124,14 +124,14 @@ class _CapturingBridge:
 
 
 def test_action_override_wins(sample_tarball: bytes, tmp_path: Path) -> None:
-    # `press` suggests warn; an explicit override must take precedence.
+    # `press` suggests warn; a per-category forced action must take precedence.
     bridge = _CapturingBridge()
     refresher = Refresher(
         Config(),
         cast(Fetcher, _OneShotFetcher(sample_tarball)),
         StateStore(tmp_path),
         bridge,
-        action_override=Action.DENY,
+        actions={"press": Action.DENY},
     )
 
     refresher.run([get("press")])
