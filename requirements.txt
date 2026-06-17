@@ -1,0 +1,10 @@
+# EGGuard runtime dependencies (kept in sync with pyproject.toml [project].dependencies).
+#
+# Inside the EnforceGate vX toolbox these ship preinstalled (python3-requests,
+# python3-yaml), so no install step is needed there. For a local clone:
+#
+#     pip install -r requirements.txt
+#
+# Dev tooling (pytest, ruff, mypy) lives in the "dev" extra: pip install -e ".[dev]"
+requests>=2.25
+PyYAML>=5.4

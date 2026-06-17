@@ -112,8 +112,15 @@ eghost toolbox repo run egguard -- install adult malware phishing
 ```bash
 git clone https://github.com/parsymonie/egguard.git
 cd egguard
-pip install -e ".[dev]"
+pip install -e ".[dev]"      # package + dev tools (pytest, ruff, mypy)
 egguard --help
+```
+
+To just run it from the clone (e.g. via `scripts/egguard`) without installing
+the package, install only the runtime dependencies:
+
+```bash
+pip install -r requirements.txt
 ```
 
 ---
