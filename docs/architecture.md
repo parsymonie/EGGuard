@@ -4,8 +4,8 @@ A short tour of how EGGuard is put together, for contributors.
 
 ## Pipeline
 
-A `refresh` run is a fan-out over the selected categories, each going through
-the same pipeline, followed by a single engine reload:
+An `install` or `update` run is a fan-out over the selected categories, each
+going through the same pipeline, followed by a single engine reload:
 
 ```
 select categories
@@ -35,7 +35,7 @@ failed, `2` could not start).
 
 | Module | Responsibility |
 | ------ | -------------- |
-| `categories.py` | The static catalogue: 66 `Category` records (name, description, suggested `Disposition`). Pure data + lookups. |
+| `categories.py` | The static catalogue: 66 `Category` records (name, description, suggested `Action`). Pure data + lookups. |
 | `config.py` | The `Config` dataclass and strict YAML loading/validation. |
 | `state.py` | `CategoryState` + `StateStore` — atomic per-category JSON cache of ETag / Last-Modified / sha256 / count. |
 | `fetcher.py` | `Fetcher` — conditional HTTP GET with retries/backoff; raises `NotModified` on 304. |
@@ -70,9 +70,12 @@ failed, `2` could not start).
 
 For each category the action is resolved in priority order:
 
-1. an explicit per-category override in `config.actions`
-2. `config.default_action`, if set
-3. the category's suggested `Disposition` from the catalogue
+1. an `--action` override passed on this `install`/`update` run
+2. an explicit per-category override in `config.actions`
+3. the action the category was installed with (persisted in its state)
+4. `config.default_action`, if set
+5. the category's suggested `Action` from the catalogue
 
 `egguard list` prints the result of this resolution for every category under
-the active config, so you can confirm exactly what a refresh will enforce.
+the active config (and marks the installed ones), so you can confirm exactly
+what an update will enforce.

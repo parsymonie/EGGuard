@@ -12,7 +12,7 @@ phishing, gambling, social networks, VPN/proxy, redirectors and more — into
 ready-to-enforce category filtering, on-box, with no cloud lookups.
 
 ```
-$ egguard refresh
+$ egguard update
 INFO adult: updated (4,612,003 domains)
 INFO malware: updated (259,965 domains)
 INFO phishing: updated (260,104 domains)
@@ -33,7 +33,7 @@ INFO engine reloaded — 63 categories updated.
 ```
                  ┌──────────────────────────────────────────┐
                  │            toolbox sidecar               │
-   UT1 feed ───► │  egguard refresh                         │
+   UT1 feed ───► │  egguard update                          │
  (HTTPS, .tar.gz)│   1. fetch <category>.tar.gz (cached)    │
                  │   2. extract & normalise `domains`       │
                  │   3. write  ut1-<cat>.list   ───────────────┐
@@ -98,13 +98,13 @@ Then schedule it (the UT1 feed updates 2–3× per week; daily is plenty):
 ```bash
 eghost toolbox cron edit
 # add:
-#   15 3 * * *  python3 /var/lib/enforcegate-toolbox/repos/egguard/scripts/egguard refresh
+#   15 3 * * *  python3 /var/lib/enforcegate-toolbox/repos/egguard/scripts/egguard update
 ```
 
-Run it once immediately to populate the lists:
+Install the categories you want once (this also populates their lists):
 
 ```bash
-eghost toolbox repo run egguard -- refresh
+eghost toolbox repo run egguard -- install adult malware phishing
 ```
 
 ### Local / development install
@@ -124,29 +124,33 @@ egguard --help
 egguard [--config PATH] [-v] <command>
 
 Commands:
-  refresh [CATEGORY ...]   download categories, write lists/policies, reload
-  list                     print the catalogue and the action resolved per category
+  install CATEGORY ...     download, write list/policy, reload (add categories)
+  update [CATEGORY ...]    refresh installed categories (default: all installed)
+  remove CATEGORY ...      delete a category's list/policy and reload
+  list                     print the catalogue, marking installed categories
   version                  print the version
 
-refresh options:
-  --action ACTION          force the action for these categories
+install / update options:
+  --action ACTION          set the action for these categories
                            (deny|warn|aup|permit; aliases: block=deny, allow=permit)
-  -n, --dry-run            download & parse but write nothing, skip reload
+  -n, --dry-run            show what would change, but write/delete nothing
 ```
 
-Running `egguard` with no command prints this help. Pass category names
-positionally to limit a refresh to them; with none, all selected categories run.
-`--action` overrides the resolved action for the categories in that run (it wins
-over config and catalogue suggestions).
+Running `egguard` with no command prints this help. It behaves like a package
+manager: `install` adds categories, `update` refreshes the ones already
+installed (this is the cron command), and `remove` drops them. An `--action`
+given on `install` is remembered, so a later `update` keeps it; otherwise it
+wins over config and catalogue suggestions for that run.
 
 Examples:
 
 ```bash
-egguard refresh                       # all selected categories
-egguard refresh adult malware         # just these two
-egguard refresh adult --action deny   # install adult, force the deny action
-egguard refresh --dry-run             # verify connectivity & parsing, change nothing
-egguard list                          # show resolved actions per category
+egguard install adult malware          # add two categories
+egguard install adult --action deny    # add adult, force (and remember) deny
+egguard update                         # refresh everything installed (cron job)
+egguard update adult                   # refresh just one
+egguard remove gambling                # drop a category
+egguard list                           # catalogue, with installed marked
 ```
 
 ### Exit codes
@@ -169,31 +173,42 @@ Each run also emits a one-line JSON summary suitable for SIEM ingestion via
 ## Use as a library
 
 Every building block EGGuard uses is importable, so you can automate
-list/policy creation for a category from your own Python:
+list/policy creation for a category from your own Python. This is a complete,
+runnable script — it downloads one category and writes its list and policy:
 
 ```python
 from pathlib import Path
-from egguard import Disposition, get, extract_domains, render_policy
 
-category = get("gambling")                     # look up a UT1 category
+from egguard import Action, Fetcher, extract_domains, get, render_policy
 
-# `tarball_bytes` is a downloaded <category>.tar.gz; extract_domains
-# normalises, de-duplicates and sorts the hosts.
-domains = extract_domains(tarball_bytes)
-Path("ut1-gambling.list").write_text("\n".join(domains) + "\n")
+category = get("gambling")                 # look up a UT1 category
+list_path = Path("ut1-gambling.list")
+policy_path = Path("60-ut1-gambling.policy")
 
-# render the matching .policy with the action you want
-policy = render_policy(
-    category,
-    list_path=Path("/etc/enforcegate-shared/lists/ut1-gambling.list"),
-    action=Disposition.DENY,
+# 1. download the category tarball (conditional GET + retries built in).
+fetcher = Fetcher(
+    "https://dsi.ut-capitole.fr/blacklists/download",
+    timeout=120,
+    retries=3,
+    user_agent="egguard-example/1.0",
 )
-Path("60-ut1-gambling.policy").write_text(policy)
+result = fetcher.fetch(category.name)      # unconditional one-off fetch
+
+# 2. normalise/de-duplicate the hosts and write the list.
+domains = extract_domains(result.content)
+list_path.write_text("\n".join(domains) + "\n")
+
+# 3. render the matching .policy with the action you want.
+policy_path.write_text(
+    render_policy(category, list_path=list_path, action=Action.DENY)
+)
+
+print(f"wrote {len(domains)} domains to {list_path} and {policy_path}")
 ```
 
-To download too, use `Fetcher` (conditional GET + retries); to run the full
-fetch→write→reload pipeline, use `Refresher` with a `Config` and a bridge from
-`get_bridge()`. `egguard.CATALOGUE` is the full list of `Category` records.
+For the full fetch→write→reload pipeline (with caching and the engine reload),
+use `Refresher` with a `Config` and a bridge from `get_bridge()`.
+`egguard.CATALOGUE` is the full list of `Category` records.
 
 ---
 

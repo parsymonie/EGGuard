@@ -1,8 +1,10 @@
 """Command-line interface for EGGuard.
 
 Subcommands:
-    refresh     download categories, write lists/policies, reload engine
-    list        print the category catalogue and resolved actions
+    install     install categories (download, write list/policy, reload)
+    update      refresh installed categories to the latest UT1 data
+    remove      delete a category's list/policy and reload
+    list        print the catalogue, marking installed categories
     version     print the EGGuard version
 """
 
@@ -16,11 +18,16 @@ from pathlib import Path
 
 from . import __version__
 from . import categories as catalogue
-from .categories import Disposition
+from .categories import Action, Category
 from .config import Config, ConfigError
 from .engine import get_bridge
 from .fetcher import Fetcher
-from .refresh import Refresher, resolve_action, select_categories
+from .refresh import (
+    Refresher,
+    remove_category,
+    resolve_action,
+    select_categories,
+)
 from .state import StateStore
 
 # Exit codes
@@ -31,18 +38,18 @@ EXIT_FATAL = 2  # could not start (bad config, unwritable volume, ...)
 _DEFAULT_CONFIG = Path("/var/lib/enforcegate-toolbox/config.yaml")
 
 # Friendly aliases for the four engine actions, accepted by --action.
-_ACTION_ALIASES = {"block": Disposition.DENY, "allow": Disposition.PERMIT}
+_ACTION_ALIASES = {"block": Action.DENY, "allow": Action.PERMIT}
 
 
-def _action_arg(value: str) -> Disposition:
-    """Parse an --action value (a Disposition name or a friendly alias)."""
+def _action_arg(value: str) -> Action:
+    """Parse an --action value (an Action name or a friendly alias)."""
     key = value.strip().lower()
     if key in _ACTION_ALIASES:
         return _ACTION_ALIASES[key]
     try:
-        return Disposition(key)
+        return Action(key)
     except ValueError:
-        valid = ", ".join(d.value for d in Disposition)
+        valid = ", ".join(d.value for d in Action)
         raise argparse.ArgumentTypeError(
             f"invalid action {value!r}; expected one of: {valid} "
             f"(aliases: block=deny, allow=permit)"
@@ -70,32 +77,58 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command")
 
-    refresh = sub.add_parser("refresh", help="download and install categories")
-    refresh.add_argument(
+    def add_action(p: argparse.ArgumentParser) -> None:
+        p.add_argument(
+            "--action",
+            type=_action_arg,
+            metavar="ACTION",
+            help=(
+                "set the action for these categories "
+                "(deny|warn|aup|permit; aliases: block=deny, allow=permit)"
+            ),
+        )
+
+    def add_dry_run(p: argparse.ArgumentParser) -> None:
+        p.add_argument(
+            "-n",
+            "--dry-run",
+            action="store_true",
+            help="show what would change, but write/delete nothing",
+        )
+
+    install = sub.add_parser(
+        "install", help="install categories (download, write, reload)"
+    )
+    install.add_argument(
+        "categories",
+        nargs="+",
+        metavar="CATEGORY",
+        help="categories to install",
+    )
+    add_action(install)
+    add_dry_run(install)
+
+    update = sub.add_parser(
+        "update", help="refresh installed categories to the latest data"
+    )
+    update.add_argument(
         "categories",
         nargs="*",
         metavar="CATEGORY",
-        help="refresh only these categories (default: all selected in config)",
+        help="categories to update (default: all installed)",
     )
-    refresh.add_argument(
-        "--action",
-        type=_action_arg,
-        metavar="ACTION",
-        help=(
-            "override the action for the refreshed categories "
-            "(deny|warn|aup|permit; aliases: block=deny, allow=permit)"
-        ),
-    )
-    refresh.add_argument(
-        "-n",
-        "--dry-run",
-        action="store_true",
-        help="download and parse, but write nothing and do not reload",
-    )
+    add_action(update)
+    add_dry_run(update)
 
-    sub.add_parser(
-        "list", help="show the category catalogue and resolved actions"
+    remove = sub.add_parser(
+        "remove", help="delete a category's list/policy and reload"
     )
+    remove.add_argument(
+        "categories", nargs="+", metavar="CATEGORY", help="categories to remove"
+    )
+    add_dry_run(remove)
+
+    sub.add_parser("list", help="show the catalogue, marking installed")
     sub.add_parser("version", help="print version and exit")
 
     return parser
@@ -143,34 +176,51 @@ def _run(argv: list[str] | None) -> int:
         return EXIT_OK
     if command == "list":
         return _cmd_list(cfg)
-    if command == "refresh":
-        return _cmd_refresh(cfg, args)
+    if command == "install":
+        return _cmd_install(cfg, args)
+    if command == "update":
+        return _cmd_update(cfg, args)
+    if command == "remove":
+        return _cmd_remove(cfg, args)
 
     parser.error(f"unknown command: {command}")
 
 
 def _cmd_list(cfg: Config) -> int:
+    store = StateStore(cfg.state_dir)
     width = max(len(c.name) for c in catalogue.CATALOGUE)
     for category in catalogue.CATALOGUE:
-        action = resolve_action(category, cfg)
+        st = store.load(category.name)
+        try:
+            installed_action = Action(st.action) if st.action else None
+        except ValueError:
+            installed_action = None
+        action = resolve_action(category, cfg, installed=installed_action)
+        mark = "*" if store.exists(category.name) else " "
         print(
-            f"{category.name:<{width}}  {action.value:<7}  {category.description}"
+            f"{mark} {category.name:<{width}}  {action.value:<7}  "
+            f"{category.description}"
         )
+    print("\n* = installed")
     return EXIT_OK
 
 
-def _cmd_refresh(cfg: Config, args: argparse.Namespace) -> int:
-    dry_run: bool = args.dry_run
+def _select_named(names: list[str]) -> list[Category]:
+    """Look up categories by name; raises KeyError on the first unknown."""
+    return [catalogue.get(name) for name in names]
 
-    # Resolve categories early so a typo fails fast.
-    try:
-        selected = select_categories(cfg, args.categories)
-    except KeyError as exc:
-        logging.critical("unknown category: %s", exc.args[0])
-        return EXIT_FATAL
 
+def _do_refresh(
+    cfg: Config,
+    selected: list[Category],
+    store: StateStore,
+    *,
+    action_override: Action | None,
+    dry_run: bool,
+) -> int:
+    """Run the fetch/write/reload pipeline for *selected* and return the code."""
     if not selected:
-        logging.warning("no categories selected — check include/skip in config")
+        logging.warning("no categories selected")
         return EXIT_OK
 
     bridge = get_bridge()
@@ -200,14 +250,13 @@ def _cmd_refresh(cfg: Config, args: argparse.Namespace) -> int:
         retries=cfg.retries,
         user_agent=cfg.user_agent,
     )
-    store = StateStore(cfg.state_dir)
     refresher = Refresher(
         cfg,
         fetcher,
         store,
         bridge,
         dry_run=dry_run,
-        action_override=args.action,
+        action_override=action_override,
     )
 
     summary = refresher.run(selected)
@@ -228,6 +277,74 @@ def _cmd_refresh(cfg: Config, args: argparse.Namespace) -> int:
         )
         return EXIT_PARTIAL
 
+    return EXIT_OK
+
+
+def _cmd_install(cfg: Config, args: argparse.Namespace) -> int:
+    store = StateStore(cfg.state_dir)
+    try:
+        selected = _select_named(args.categories)
+    except KeyError as exc:
+        logging.critical("unknown category: %s", exc.args[0])
+        return EXIT_FATAL
+    return _do_refresh(
+        cfg, selected, store, action_override=args.action, dry_run=args.dry_run
+    )
+
+
+def _cmd_update(cfg: Config, args: argparse.Namespace) -> int:
+    store = StateStore(cfg.state_dir)
+    try:
+        if args.categories:
+            selected = _select_named(args.categories)
+        else:
+            installed = [n for n in store.installed() if n in catalogue.BY_NAME]
+            if installed:
+                selected = _select_named(installed)
+            else:
+                logging.info(
+                    "nothing installed yet — updating config-selected categories"
+                )
+                selected = select_categories(cfg, None)
+    except KeyError as exc:
+        logging.critical("unknown category: %s", exc.args[0])
+        return EXIT_FATAL
+    return _do_refresh(
+        cfg, selected, store, action_override=args.action, dry_run=args.dry_run
+    )
+
+
+def _cmd_remove(cfg: Config, args: argparse.Namespace) -> int:
+    store = StateStore(cfg.state_dir)
+    try:
+        selected = _select_named(args.categories)
+    except KeyError as exc:
+        logging.critical("unknown category: %s", exc.args[0])
+        return EXIT_FATAL
+
+    bridge = get_bridge()
+    removed_any = False
+    for category in selected:
+        if args.dry_run:
+            state = (
+                "would remove"
+                if store.exists(category.name)
+                else "not installed"
+            )
+            logging.info("[dry-run] %s: %s", category.name, state)
+            continue
+        if remove_category(category, cfg, store, bridge):
+            removed_any = True
+            logging.info("%s: removed", category.name)
+        else:
+            logging.info("%s: not installed", category.name)
+
+    if removed_any:
+        try:
+            bridge.reload()
+        except Exception as exc:
+            logging.error("engine reload failed: %s", exc)
+            return EXIT_PARTIAL
     return EXIT_OK
 
 

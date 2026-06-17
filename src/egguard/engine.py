@@ -34,6 +34,12 @@ class EngineBridge(Protocol):
     def write_policy(self, path: Path, text: str) -> None:
         """Write a ``.policy`` file to *path*."""
 
+    def remove_list(self, path: Path) -> None:
+        """Delete a domain list at *path*, if it exists."""
+
+    def remove_policy(self, path: Path) -> None:
+        """Delete a ``.policy`` file at *path*, if it exists."""
+
     def reload(self) -> None:
         """Ask the engine to recompile and reload its policy set."""
 
@@ -64,6 +70,14 @@ class _ToolboxBridge:
         # Same contract as lists.write: bare stem, the library adds ``.policy``.
         self._policies.write(path.stem, text)
 
+    def remove_list(self, path: Path) -> None:
+        # The library has no documented delete; EGGuard wrote the file at this
+        # path (in the shared dir it owns), so unlink it directly.
+        path.unlink(missing_ok=True)
+
+    def remove_policy(self, path: Path) -> None:
+        path.unlink(missing_ok=True)
+
     def reload(self) -> None:
         self._engine.reload()
 
@@ -86,6 +100,12 @@ class _LocalBridge:
     def write_policy(self, path: Path, text: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
+
+    def remove_list(self, path: Path) -> None:
+        path.unlink(missing_ok=True)
+
+    def remove_policy(self, path: Path) -> None:
+        path.unlink(missing_ok=True)
 
     def reload(self) -> None:
         _log.info("(local) engine reload skipped — toolbox library unavailable")

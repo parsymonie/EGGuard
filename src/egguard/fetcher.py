@@ -55,17 +55,20 @@ class Fetcher:
         """Return the download URL for *category*."""
         return f"{self._base_url}/{category}.tar.gz"
 
-    def fetch(self, category: str, state: CategoryState) -> FetchResult:
+    def fetch(
+        self, category: str, state: CategoryState | None = None
+    ) -> FetchResult:
         """Download one category tarball.
 
-        Uses conditional-request headers derived from *state*.
+        Uses conditional-request headers derived from *state*. Pass ``None``
+        (the default) for an unconditional fetch.
 
         Raises:
             NotModified: if the server returns HTTP 304.
             FetchError: if all attempts fail.
         """
         url = self.url_for(category)
-        headers = _conditional_headers(state)
+        headers = _conditional_headers(state or CategoryState())
         last_exc: Exception | None = None
 
         for attempt in range(1, self._retries + 1):

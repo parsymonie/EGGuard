@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from egguard.categories import Disposition
+from egguard.categories import Action
 from egguard.config import Config, ConfigError
 
 
@@ -31,9 +31,9 @@ def test_load_overrides(tmp_path: Path) -> None:
     )
     cfg = Config.load(path)
     assert cfg.policy_prefix == "40"
-    assert cfg.default_action is Disposition.WARN
-    assert cfg.actions["adult"] is Disposition.DENY
-    assert cfg.actions["child"] is Disposition.PERMIT
+    assert cfg.default_action is Action.WARN
+    assert cfg.actions["adult"] is Action.DENY
+    assert cfg.actions["child"] is Action.PERMIT
     assert cfg.skip == ["examen_pix"]
 
 

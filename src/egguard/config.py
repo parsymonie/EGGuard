@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-from .categories import Disposition
+from .categories import Action
 
 # --------------------------------------------------------------------------- #
 # Defaults — aligned with the EnforceGate vX toolbox documentation.
@@ -51,10 +51,10 @@ class Config:
     user_agent: str = DEFAULT_USER_AGENT
 
     # Default action for categories without an explicit override.
-    default_action: Disposition | None = None
+    default_action: Action | None = None
 
-    # Per-category action overrides (name -> Disposition).
-    actions: dict[str, Disposition] = field(default_factory=dict)
+    # Per-category action overrides (name -> Action).
+    actions: dict[str, Action] = field(default_factory=dict)
 
     # Category selection. ``include`` wins over ``skip`` when non-empty.
     include: list[str] = field(default_factory=list)
@@ -125,19 +125,19 @@ def _is_two_digit_prefix(value: str) -> bool:
     return len(value) == 2 and value.isdigit()
 
 
-def _parse_action(value: Any, source: Path) -> Disposition | None:
+def _parse_action(value: Any, source: Path) -> Action | None:
     if value is None:
         return None
     try:
-        return Disposition(str(value))
+        return Action(str(value))
     except ValueError as exc:
-        valid = ", ".join(d.value for d in Disposition)
+        valid = ", ".join(d.value for d in Action)
         raise ConfigError(
             f"{source}: invalid action {value!r}; expected one of: {valid}"
         ) from exc
 
 
-def _parse_actions(value: Any, source: Path) -> dict[str, Disposition]:
+def _parse_actions(value: Any, source: Path) -> dict[str, Action]:
     if value is None:
         return {}
     if not isinstance(value, dict):
@@ -147,7 +147,7 @@ def _parse_actions(value: Any, source: Path) -> dict[str, Disposition]:
     }
 
 
-def _require_action(value: Any, source: Path) -> Disposition:
+def _require_action(value: Any, source: Path) -> Action:
     action = _parse_action(value, source)
     if action is None:
         raise ConfigError(f"{source}: action may not be null")

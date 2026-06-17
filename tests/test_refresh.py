@@ -7,7 +7,7 @@ from typing import cast
 
 import pytest
 
-from egguard.categories import Disposition, get
+from egguard.categories import Action, get
 from egguard.config import Config
 from egguard.fetcher import Fetcher, FetchResult
 from egguard.refresh import (
@@ -83,6 +83,12 @@ class _WriteFailBridge:
     def write_policy(self, path: Path, text: str) -> None:  # pragma: no cover
         raise AssertionError("policy write should not be reached")
 
+    def remove_list(self, path: Path) -> None:  # pragma: no cover
+        pass
+
+    def remove_policy(self, path: Path) -> None:  # pragma: no cover
+        pass
+
     def reload(self) -> None:  # pragma: no cover
         raise AssertionError("reload should not run when nothing changed")
 
@@ -104,6 +110,12 @@ class _CapturingBridge:
     def write_policy(self, path: Path, text: str) -> None:
         self.policies[path.name] = text
 
+    def remove_list(self, path: Path) -> None:
+        pass
+
+    def remove_policy(self, path: Path) -> None:
+        pass
+
     def reload(self) -> None:
         pass
 
@@ -119,7 +131,7 @@ def test_action_override_wins(sample_tarball: bytes, tmp_path: Path) -> None:
         cast(Fetcher, _OneShotFetcher(sample_tarball)),
         StateStore(tmp_path),
         bridge,
-        action_override=Disposition.DENY,
+        action_override=Action.DENY,
     )
 
     refresher.run([get("press")])
@@ -150,12 +162,10 @@ def test_write_oserror_fails_only_that_category(
 def test_resolve_action_priority() -> None:
     adult = get("adult")
     # 1. explicit override wins
-    cfg = Config(
-        actions={"adult": Disposition.WARN}, default_action=Disposition.PERMIT
-    )
-    assert resolve_action(adult, cfg) is Disposition.WARN
+    cfg = Config(actions={"adult": Action.WARN}, default_action=Action.PERMIT)
+    assert resolve_action(adult, cfg) is Action.WARN
     # 2. default_action when no override
-    cfg = Config(default_action=Disposition.PERMIT)
-    assert resolve_action(adult, cfg) is Disposition.PERMIT
+    cfg = Config(default_action=Action.PERMIT)
+    assert resolve_action(adult, cfg) is Action.PERMIT
     # 3. catalogue suggestion when neither set
-    assert resolve_action(adult, Config()) is Disposition.DENY
+    assert resolve_action(adult, Config()) is Action.DENY

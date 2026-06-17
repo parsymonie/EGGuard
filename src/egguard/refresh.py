@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from . import categories as catalogue
-from .categories import Category, Disposition
+from .categories import Action, Category
 from .config import Config
 from .engine import EngineBridge, json_event
 from .fetcher import Fetcher, FetchError, NotModified
@@ -104,13 +104,61 @@ def select_categories(
     return [c for c in catalogue.CATALOGUE if c.name not in skip]
 
 
-def resolve_action(category: Category, cfg: Config) -> Disposition:
-    """Resolve the action for *category*: override > default > suggestion."""
+def resolve_action(
+    category: Category,
+    cfg: Config,
+    *,
+    override: Action | None = None,
+    installed: Action | None = None,
+) -> Action:
+    """Resolve the action for *category*.
+
+    Priority: CLI ``override`` > config per-category > the action it was
+    ``installed`` with > config default > catalogue suggestion.
+    """
+    if override is not None:
+        return override
     if category.name in cfg.actions:
         return cfg.actions[category.name]
+    if installed is not None:
+        return installed
     if cfg.default_action is not None:
         return cfg.default_action
     return category.disposition
+
+
+def _disposition_or_none(value: str) -> Action | None:
+    """Parse a stored action string into a Action, or None if blank/bad."""
+    if not value:
+        return None
+    try:
+        return Action(value)
+    except ValueError:
+        return None
+
+
+def remove_category(
+    category: Category,
+    cfg: Config,
+    store: StateStore,
+    bridge: EngineBridge,
+) -> bool:
+    """Delete *category*'s generated list, policy, and state.
+
+    Returns True if the category was installed (something existed to remove).
+    The caller is responsible for reloading the engine afterwards.
+    """
+    list_path = cfg.lists_dir / category.list_filename
+    policy_path = cfg.policies_dir / category.policy_filename(cfg.policy_prefix)
+    existed = (
+        store.exists(category.name)
+        or list_path.exists()
+        or policy_path.exists()
+    )
+    bridge.remove_list(list_path)
+    bridge.remove_policy(policy_path)
+    store.remove(category.name)
+    return existed
 
 
 class Refresher:
@@ -124,7 +172,7 @@ class Refresher:
         bridge: EngineBridge,
         *,
         dry_run: bool = False,
-        action_override: Disposition | None = None,
+        action_override: Action | None = None,
     ) -> None:
         self._cfg = cfg
         self._fetcher = fetcher
@@ -192,15 +240,29 @@ class Refresher:
                 ),
             )
 
+        action = resolve_action(
+            category,
+            self._cfg,
+            override=self._action_override,
+            installed=_disposition_or_none(state.action),
+        )
+
         if not self._dry_run:
             # A write failure (e.g. the shared volume is read-only) must fail
             # only this category, not abort the whole run.
             try:
-                self._write(category, domains)
+                self._write(category, domains, action)
             except OSError as exc:
                 return CategoryResult(
                     category.name, Outcome.FAILED, message=str(exc)
                 )
+            # Persist the action only when explicitly chosen on this run;
+            # otherwise keep whatever the category was installed with.
+            saved_action = (
+                self._action_override.value
+                if self._action_override is not None
+                else state.action
+            )
             self._store.save(
                 category.name,
                 CategoryState(
@@ -208,18 +270,19 @@ class Refresher:
                     last_modified=fetched.last_modified,
                     sha256=sha256,
                     domain_count=len(domains),
+                    action=saved_action,
                 ),
             )
 
         return CategoryResult(category.name, Outcome.UPDATED, len(domains))
 
-    def _write(self, category: Category, domains: list[str]) -> None:
+    def _write(
+        self, category: Category, domains: list[str], action: Action
+    ) -> None:
         list_path = self._cfg.lists_dir / category.list_filename
         policy_path = self._cfg.policies_dir / category.policy_filename(
             self._cfg.policy_prefix
         )
-        action = self._action_override or resolve_action(category, self._cfg)
-
         self._bridge.write_list(list_path, domains)
         self._bridge.write_policy(
             policy_path,

@@ -8,7 +8,7 @@ Each archive unpacks to a ``<name>/`` directory containing a ``domains``
 file (one hostname per line) and, for some categories, a ``urls`` file.
 EGGuard consumes the ``domains`` file only.
 
-The ``Disposition`` attached to each category is a *suggested* default
+The ``Action`` attached to each category is a *suggested* default
 action, not a hard rule: operators override any of these per category in
 ``config.yaml``. The suggestions follow the spirit of the UT1
 documentation, which stresses that the lists are a *categorisation* of
@@ -23,7 +23,7 @@ import enum
 from dataclasses import dataclass
 
 
-class Disposition(enum.Enum):
+class Action(enum.Enum):
     """A suggested default action for a category.
 
     Maps directly onto EnforceGate's four policy actions.
@@ -41,7 +41,7 @@ class Category:
 
     name: str
     description: str
-    disposition: Disposition
+    disposition: Action
 
     @property
     def list_filename(self) -> str:
@@ -57,7 +57,7 @@ class Category:
 # The full catalogue — 65 categories as published by UT1 (2026).
 # Descriptions are concise English renderings of the upstream French text.
 # --------------------------------------------------------------------------- #
-_D = Disposition
+_D = Action
 
 CATALOGUE: tuple[Category, ...] = (
     Category(

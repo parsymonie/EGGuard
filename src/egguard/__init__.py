@@ -7,19 +7,20 @@ single engine reload.
 
 It can be driven two ways:
 
-* **As a CLI / cron job** — ``egguard refresh`` (see ``egguard --help``).
+* **As a CLI / cron job** — ``egguard install`` / ``egguard update`` (see
+  ``egguard --help``).
 * **As a library** — import the building blocks to automate list and policy
   creation for a category::
 
       from pathlib import Path
-      from egguard import Disposition, get, extract_domains, render_policy
+      from egguard import Action, get, extract_domains, render_policy
 
       category = get("gambling")
       domains = extract_domains(tarball_bytes)          # normalised hosts
       policy = render_policy(
           category,
           list_path=Path("/etc/enforcegate-shared/lists/ut1-gambling.list"),
-          action=Disposition.DENY,
+          action=Action.DENY,
       )
 
   Or fetch + write a whole run with :class:`Refresher` / :class:`Fetcher`.
@@ -29,7 +30,7 @@ Upstream data: https://dsi.ut-capitole.fr/blacklists/  (CC BY-SA 4.0)
 
 from __future__ import annotations
 
-from .categories import CATALOGUE, Category, Disposition, all_names, get
+from .categories import CATALOGUE, Action, Category, all_names, get
 from .config import Config, ConfigError
 from .engine import EngineBridge, get_bridge
 from .fetcher import Fetcher, FetchError, FetchResult, NotModified
@@ -51,12 +52,12 @@ __url__ = "https://github.com/parsymonie/egguard"
 
 __all__ = [
     "CATALOGUE",
+    "Action",
     "Category",
     "CategoryResult",
     "CategoryState",
     "Config",
     "ConfigError",
-    "Disposition",
     "EngineBridge",
     "FetchError",
     "FetchResult",

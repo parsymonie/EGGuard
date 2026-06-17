@@ -42,7 +42,7 @@ All four must pass. New behaviour should come with tests.
 
 The UT1 category set occasionally changes. The catalogue lives in
 `src/egguard/categories.py`. When adding a category, include a concise English
-description and a sensible default `Disposition`. Confirm the count and the
+description and a sensible default `Action`. Confirm the count and the
 `egguard list` output still look right.
 
 ## Reporting issues

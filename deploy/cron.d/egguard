@@ -8,4 +8,4 @@
 #
 # Format: min hour dom mon dow  command
 #
-15 3 * * * python3 /var/lib/enforcegate-toolbox/repos/egguard/scripts/egguard refresh
+15 3 * * * python3 /var/lib/enforcegate-toolbox/repos/egguard/scripts/egguard update
