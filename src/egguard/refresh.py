@@ -191,7 +191,14 @@ class Refresher:
             )
 
         if not self._dry_run:
-            self._write(category, domains)
+            # A write failure (e.g. the shared volume is read-only) must fail
+            # only this category, not abort the whole run.
+            try:
+                self._write(category, domains)
+            except OSError as exc:
+                return CategoryResult(
+                    category.name, Outcome.FAILED, message=str(exc)
+                )
             self._store.save(
                 category.name,
                 CategoryState(

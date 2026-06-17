@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 from egguard.categories import Disposition, get
 from egguard.config import Config
-from egguard.refresh import resolve_action, select_categories
+from egguard.fetcher import Fetcher, FetchResult
+from egguard.refresh import (
+    Outcome,
+    Refresher,
+    resolve_action,
+    select_categories,
+)
 from egguard.state import CategoryState, StateStore
 
 
@@ -53,6 +60,53 @@ def test_select_skip_excludes() -> None:
     names = {c.name for c in select_categories(cfg, None)}
     assert "adult" not in names
     assert "malware" in names
+
+
+class _OneShotFetcher:
+    """Returns a fixed tarball for any category."""
+
+    def __init__(self, content: bytes) -> None:
+        self._content = content
+
+    def fetch(self, category: str, state: CategoryState) -> FetchResult:
+        return FetchResult(content=self._content, etag="", last_modified="")
+
+
+class _WriteFailBridge:
+    """Bridge whose list write fails like a read-only shared volume."""
+
+    available = True
+
+    def write_list(self, path: Path, domains: list[str]) -> None:
+        raise PermissionError(13, "Permission denied", str(path))
+
+    def write_policy(self, path: Path, text: str) -> None:  # pragma: no cover
+        raise AssertionError("policy write should not be reached")
+
+    def reload(self) -> None:  # pragma: no cover
+        raise AssertionError("reload should not run when nothing changed")
+
+    def log(self, message: str) -> None:
+        pass
+
+
+def test_write_oserror_fails_only_that_category(
+    sample_tarball: bytes, tmp_path: Path
+) -> None:
+    # A bridge OSError must surface as a clean per-category failure, not an
+    # uncaught traceback that aborts the run.
+    refresher = Refresher(
+        Config(),
+        cast(Fetcher, _OneShotFetcher(sample_tarball)),
+        StateStore(tmp_path),
+        _WriteFailBridge(),
+    )
+
+    summary = refresher.run([get("adult")])
+
+    assert [r.outcome for r in summary.results] == [Outcome.FAILED]
+    assert "Permission denied" in summary.results[0].message
+    assert summary.failed and not summary.reloaded
 
 
 def test_resolve_action_priority() -> None:
