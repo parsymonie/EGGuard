@@ -90,6 +90,44 @@ class _WriteFailBridge:
         pass
 
 
+class _CapturingBridge:
+    """Bridge that records the policy text written for each category."""
+
+    available = True
+
+    def __init__(self) -> None:
+        self.policies: dict[str, str] = {}
+
+    def write_list(self, path: Path, domains: list[str]) -> None:
+        pass
+
+    def write_policy(self, path: Path, text: str) -> None:
+        self.policies[path.name] = text
+
+    def reload(self) -> None:
+        pass
+
+    def log(self, message: str) -> None:
+        pass
+
+
+def test_action_override_wins(sample_tarball: bytes, tmp_path: Path) -> None:
+    # `press` suggests warn; an explicit override must take precedence.
+    bridge = _CapturingBridge()
+    refresher = Refresher(
+        Config(),
+        cast(Fetcher, _OneShotFetcher(sample_tarball)),
+        StateStore(tmp_path),
+        bridge,
+        action_override=Disposition.DENY,
+    )
+
+    refresher.run([get("press")])
+
+    text = next(iter(bridge.policies.values()))
+    assert "action: deny" in text
+
+
 def test_write_oserror_fails_only_that_category(
     sample_tarball: bytes, tmp_path: Path
 ) -> None:

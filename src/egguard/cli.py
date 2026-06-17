@@ -16,6 +16,7 @@ from pathlib import Path
 
 from . import __version__
 from . import categories as catalogue
+from .categories import Disposition
 from .config import Config, ConfigError
 from .engine import get_bridge
 from .fetcher import Fetcher
@@ -28,6 +29,24 @@ EXIT_PARTIAL = 1  # some categories failed
 EXIT_FATAL = 2  # could not start (bad config, unwritable volume, ...)
 
 _DEFAULT_CONFIG = Path("/var/lib/enforcegate-toolbox/config.yaml")
+
+# Friendly aliases for the four engine actions, accepted by --action.
+_ACTION_ALIASES = {"block": Disposition.DENY, "allow": Disposition.PERMIT}
+
+
+def _action_arg(value: str) -> Disposition:
+    """Parse an --action value (a Disposition name or a friendly alias)."""
+    key = value.strip().lower()
+    if key in _ACTION_ALIASES:
+        return _ACTION_ALIASES[key]
+    try:
+        return Disposition(key)
+    except ValueError:
+        valid = ", ".join(d.value for d in Disposition)
+        raise argparse.ArgumentTypeError(
+            f"invalid action {value!r}; expected one of: {valid} "
+            f"(aliases: block=deny, allow=permit)"
+        ) from None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -53,12 +72,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     refresh = sub.add_parser("refresh", help="download and install categories")
     refresh.add_argument(
-        "-C",
-        "--category",
-        action="append",
-        dest="categories",
-        metavar="NAME",
-        help="refresh only this category (repeatable; overrides config selection)",
+        "categories",
+        nargs="*",
+        metavar="CATEGORY",
+        help="refresh only these categories (default: all selected in config)",
+    )
+    refresh.add_argument(
+        "--action",
+        type=_action_arg,
+        metavar="ACTION",
+        help=(
+            "override the action for the refreshed categories "
+            "(deny|warn|aup|permit; aliases: block=deny, allow=permit)"
+        ),
     )
     refresh.add_argument(
         "-n",
@@ -99,8 +125,12 @@ def _run(argv: list[str] | None) -> int:
         format="%(levelname)s %(message)s",
     )
 
-    # Default to 'refresh' when no subcommand is given.
-    command = args.command or "refresh"
+    # No subcommand: show help instead of doing anything side-effecting.
+    if args.command is None:
+        parser.print_help()
+        return EXIT_OK
+
+    command = args.command
 
     try:
         cfg = Config.load(args.config)
@@ -171,7 +201,14 @@ def _cmd_refresh(cfg: Config, args: argparse.Namespace) -> int:
         user_agent=cfg.user_agent,
     )
     store = StateStore(cfg.state_dir)
-    refresher = Refresher(cfg, fetcher, store, bridge, dry_run=dry_run)
+    refresher = Refresher(
+        cfg,
+        fetcher,
+        store,
+        bridge,
+        dry_run=dry_run,
+        action_override=args.action,
+    )
 
     summary = refresher.run(selected)
 

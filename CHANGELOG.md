@@ -6,7 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- The package is now importable as a library: `egguard` re-exports the public
+  API (`get`, `extract_domains`, `render_policy`, `Fetcher`, `Refresher`,
+  `Config`, `Disposition`, `CATALOGUE`, …) so list/policy creation for a
+  category can be automated from Python.
+
 ### Changed
+
+- `refresh` now takes categories **positionally** (`egguard refresh adult
+  malware`) instead of the repeatable `-C/--category` flag.
+- `refresh --action ACTION` forces the action for the refreshed categories
+  (`deny`/`warn`/`aup`/`permit`, with `block`/`allow` aliases), overriding
+  config and catalogue suggestions for that run.
+- Running `egguard` with no subcommand prints help and exits, instead of
+  defaulting to a full refresh.
 
 - Default `policies_dir` is now `/etc/enforcegate-shared/rules.d` to match the
   shared rules directory introduced in EnforceGate vX 2026.32.0. On older

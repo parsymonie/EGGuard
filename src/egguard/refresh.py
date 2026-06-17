@@ -124,12 +124,14 @@ class Refresher:
         bridge: EngineBridge,
         *,
         dry_run: bool = False,
+        action_override: Disposition | None = None,
     ) -> None:
         self._cfg = cfg
         self._fetcher = fetcher
         self._store = store
         self._bridge = bridge
         self._dry_run = dry_run
+        self._action_override = action_override
 
     def run(self, selected: list[Category]) -> RefreshSummary:
         """Refresh every category in *selected* and reload once if needed."""
@@ -216,7 +218,7 @@ class Refresher:
         policy_path = self._cfg.policies_dir / category.policy_filename(
             self._cfg.policy_prefix
         )
-        action = resolve_action(category, self._cfg)
+        action = self._action_override or resolve_action(category, self._cfg)
 
         self._bridge.write_list(list_path, domains)
         self._bridge.write_policy(

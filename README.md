@@ -104,7 +104,7 @@ eghost toolbox cron edit
 Run it once immediately to populate the lists:
 
 ```bash
-eghost toolbox repo run egguard
+eghost toolbox repo run egguard -- refresh
 ```
 
 ### Local / development install
@@ -124,20 +124,27 @@ egguard --help
 egguard [--config PATH] [-v] <command>
 
 Commands:
-  refresh   download categories, write lists/policies, reload the engine
-  list      print the catalogue and the action resolved for each category
-  version   print the version
+  refresh [CATEGORY ...]   download categories, write lists/policies, reload
+  list                     print the catalogue and the action resolved per category
+  version                  print the version
 
 refresh options:
-  -C, --category NAME   refresh only this category (repeatable)
-  -n, --dry-run         download & parse but write nothing, skip reload
+  --action ACTION          force the action for these categories
+                           (deny|warn|aup|permit; aliases: block=deny, allow=permit)
+  -n, --dry-run            download & parse but write nothing, skip reload
 ```
+
+Running `egguard` with no command prints this help. Pass category names
+positionally to limit a refresh to them; with none, all selected categories run.
+`--action` overrides the resolved action for the categories in that run (it wins
+over config and catalogue suggestions).
 
 Examples:
 
 ```bash
 egguard refresh                       # all selected categories
-egguard refresh -C adult -C malware   # just these two
+egguard refresh adult malware         # just these two
+egguard refresh adult --action deny   # install adult, force the deny action
 egguard refresh --dry-run             # verify connectivity & parsing, change nothing
 egguard list                          # show resolved actions per category
 ```
@@ -156,6 +163,37 @@ Each run also emits a one-line JSON summary suitable for SIEM ingestion via
 ```json
 {"dry_run":false,"elapsed_s":48.2,"event":"egguard-refresh","failed":0,"reloaded":true,"total":63,"updated":63}
 ```
+
+---
+
+## Use as a library
+
+Every building block EGGuard uses is importable, so you can automate
+list/policy creation for a category from your own Python:
+
+```python
+from pathlib import Path
+from egguard import Disposition, get, extract_domains, render_policy
+
+category = get("gambling")                     # look up a UT1 category
+
+# `tarball_bytes` is a downloaded <category>.tar.gz; extract_domains
+# normalises, de-duplicates and sorts the hosts.
+domains = extract_domains(tarball_bytes)
+Path("ut1-gambling.list").write_text("\n".join(domains) + "\n")
+
+# render the matching .policy with the action you want
+policy = render_policy(
+    category,
+    list_path=Path("/etc/enforcegate-shared/lists/ut1-gambling.list"),
+    action=Disposition.DENY,
+)
+Path("60-ut1-gambling.policy").write_text(policy)
+```
+
+To download too, use `Fetcher` (conditional GET + retries); to run the full
+fetch→write→reload pipeline, use `Refresher` with a `Config` and a bridge from
+`get_bridge()`. `egguard.CATALOGUE` is the full list of `Category` records.
 
 ---
 
