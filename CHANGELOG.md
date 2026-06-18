@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The `select` picker now uses a multi-shade pink palette instead of one flat
+  colour: the source and action columns, selection/installed markers, headers,
+  and progress status lines each get their own pink so components and parameters
+  are easier to tell apart (actions are shade-coded deny/warn/aup/permit, and
+  the column header doubles as a colour legend). Degrades gracefully from
+  redefinable RGB to the xterm-256 pinks to magenta-with-styles.
+
 ## [2.2.0] — 2026-06-18
 
 ### Added

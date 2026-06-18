@@ -161,36 +161,126 @@ def _addstr(
         stdscr.addnstr(y, x, text, max(0, width - x - 1), attr)
 
 
-def _init_pink() -> int:
-    """Set up a pink colour pair and return it (0 = terminal has no colour).
+@dataclass(frozen=True, slots=True)
+class Palette:
+    """Pink colour attributes for the picker, one shade per UX role.
 
-    The author is a little pig, so the picker is pink. Real pink needs a
-    redefinable palette; otherwise we fall back to the nearest stock colour
-    (magenta).
+    Each field is a ready-to-use curses attribute (colour pair OR'd with any
+    style bits), so callers pass it straight to ``addnstr``.
+    """
+
+    art: int  # the pig header — brightest pink
+    text: int  # primary text (category names)
+    muted: int  # secondary text (descriptions, instructions, unchanged)
+    source: int  # the source column / AUP action
+    action: int  # the action column / WARN / "updated"
+    accent: int  # headers, selection, deny, summary — the strongest pink
+
+
+# Role -> (xterm-256 pink index, redefinable-palette RGB on a 0..1000 scale).
+# We prefer real RGB when the terminal allows it, fall back to the fixed
+# xterm-256 pinks on 256-colour terminals, and to magenta+styles otherwise.
+_PINK_ROLES: tuple[tuple[str, int, tuple[int, int, int]], ...] = (
+    ("art", 218, (1000, 686, 843)),  # light pink
+    ("text", 211, (1000, 529, 686)),  # pink
+    ("muted", 175, (843, 529, 686)),  # dusty rose
+    ("source", 213, (1000, 529, 1000)),  # orchid pink
+    ("action", 205, (1000, 372, 686)),  # hot pink
+    ("accent", 198, (1000, 60, 529)),  # deep pink
+)
+
+
+def _init_palette() -> Palette:
+    """Set up the pink palette and return its per-role attributes.
+
+    The author is a little pig, so the picker is pink — but in several shades
+    so columns and components are easy to tell apart. Degrades gracefully:
+    redefinable RGB where available, the fixed xterm-256 pinks on 256-colour
+    terminals, then magenta with style bits, then plain styles with no colour.
     """
     if not curses.has_colors():
-        return 0
+        # No colour at all: lean on bold/dim so roles still differ a little.
+        return Palette(
+            art=curses.A_BOLD,
+            text=curses.A_NORMAL,
+            muted=curses.A_DIM,
+            source=curses.A_NORMAL,
+            action=curses.A_BOLD,
+            accent=curses.A_BOLD | curses.A_REVERSE,
+        )
+
     curses.start_color()
     try:
         curses.use_default_colors()
         background = -1
     except curses.error:
         background = curses.COLOR_BLACK
-    foreground = curses.COLOR_MAGENTA
-    if curses.can_change_color() and curses.COLORS > 16:
-        pink = min(curses.COLORS - 1, 200)
+
+    can_custom = curses.can_change_color() and curses.COLORS > 16
+    attrs: dict[str, int] = {}
+    for i, (role, idx, rgb) in enumerate(_PINK_ROLES, start=1):
+        foreground = curses.COLOR_MAGENTA
+        if can_custom:
+            color_id = min(curses.COLORS - 1, 200 + i)
+            try:
+                curses.init_color(color_id, *rgb)
+                foreground = color_id
+            except curses.error:
+                foreground = idx if curses.COLORS >= 256 else foreground
+        elif curses.COLORS >= 256:
+            foreground = idx
         try:
-            curses.init_color(pink, 1000, 600, 760)
-            foreground = pink
+            curses.init_pair(i, foreground, background)
+            attrs[role] = curses.color_pair(i)
         except curses.error:
-            foreground = curses.COLOR_MAGENTA
-    curses.init_pair(1, foreground, background)
-    return 1
+            attrs[role] = 0
+
+    # Add a little weight to the prominent roles so they stand out even when
+    # the terminal collapsed several shades onto the same magenta.
+    return Palette(
+        art=attrs["art"] | curses.A_BOLD,
+        text=attrs["text"],
+        muted=attrs["muted"],
+        source=attrs["source"],
+        action=attrs["action"] | curses.A_BOLD,
+        accent=attrs["accent"] | curses.A_BOLD,
+    )
+
+
+def _action_attr(action: Action, palette: Palette) -> int:
+    """Pick a shade for an action so deny/warn/aup/permit read differently."""
+    return {
+        Action.DENY: palette.accent,
+        Action.WARN: palette.action,
+        Action.AUP: palette.source,
+        Action.PERMIT: palette.muted,
+    }.get(action, palette.text)
+
+
+def _draw_segments(
+    stdscr: curses.window, y: int, x: int, segments: list[tuple[str, int]]
+) -> None:
+    """Draw coloured (text, attr) segments left to right from *x*."""
+    for text, attr in segments:
+        _addstr(stdscr, y, x, text, attr)
+        x += len(text)
+
+
+def _status_attr(line: str, palette: Palette) -> int:
+    """Colour a per-category status line by its leading mark (+/=/!)."""
+    mark = line[:1]
+    if mark == "!":
+        return palette.accent  # failure — strongest
+    if mark == "+":
+        return palette.action  # updated
+    if mark == "=":
+        return palette.muted  # unchanged
+    return palette.text
 
 
 def _draw_progress(
     stdscr: curses.window,
-    pink: int,
+    palette: Palette,
     done: int,
     total: int,
     log: list[str],
@@ -208,43 +298,57 @@ def _draw_progress(
 
     # Keep the same pig header as the picker.
     for idx, line in enumerate(_ART):
-        _addline(stdscr, idx, 0, line, width, pink | curses.A_BOLD)
+        _addline(stdscr, idx, 0, line, width, palette.art)
     top = len(_ART)
 
     title = "Done. Press any key." if finished else "Installing categories..."
-    _addstr(stdscr, top, left, title, pink | curses.A_BOLD)
+    _addstr(stdscr, top, left, title, palette.accent)
 
     # [ <filled: reverse-video> <empty> ]  NN%
     bar_row = top + 2
-    _addstr(stdscr, bar_row, left, "[", pink)
-    _addstr(stdscr, bar_row, left + 1, " " * filled, pink | curses.A_REVERSE)
-    _addstr(stdscr, bar_row, left + 1 + filled, " " * (bar_w - filled), pink)
-    _addstr(stdscr, bar_row, left + 1 + bar_w, "]", pink)
+    _addstr(stdscr, bar_row, left, "[", palette.text)
+    _addstr(
+        stdscr,
+        bar_row,
+        left + 1,
+        " " * filled,
+        palette.action | curses.A_REVERSE,
+    )
+    _addstr(
+        stdscr,
+        bar_row,
+        left + 1 + filled,
+        " " * (bar_w - filled),
+        palette.muted,
+    )
+    _addstr(stdscr, bar_row, left + 1 + bar_w, "]", palette.text)
     _addstr(
         stdscr,
         bar_row,
         left + 3 + bar_w,
         f"{int(ratio * 100):3d}%",
-        pink | curses.A_BOLD,
+        palette.accent,
     )
-    _addstr(stdscr, bar_row + 1, left, f"{done}/{total} categories", pink)
+    _addstr(
+        stdscr, bar_row + 1, left, f"{done}/{total} categories", palette.text
+    )
 
     # The per-category status from the engine/client API, newest at the bottom.
     log_top = bar_row + 3
     reserve = 2 if (finished and summary) else 0
     avail = max(0, height - log_top - reserve)
     for i, line in enumerate(log[-avail:] if avail else []):
-        _addstr(stdscr, log_top + i, left, line, pink)
+        _addstr(stdscr, log_top + i, left, line, _status_attr(line, palette))
 
     if finished and summary:
-        _addstr(stdscr, height - 2, left, summary, pink | curses.A_BOLD)
+        _addstr(stdscr, height - 2, left, summary, palette.accent)
 
     stdscr.refresh()
 
 
 def _run_install(
     stdscr: curses.window,
-    pink: int,
+    palette: Palette,
     selection: Selection,
     installer: Installer,
 ) -> None:
@@ -256,7 +360,7 @@ def _run_install(
         if done >= 1:
             log.append(message)
         _draw_progress(
-            stdscr, pink, done, total_, log, summary="", finished=False
+            stdscr, palette, done, total_, log, summary="", finished=False
         )
 
     report(0, total, "")
@@ -281,7 +385,7 @@ def _run_install(
         os.close(devnull)
 
     _draw_progress(
-        stdscr, pink, total, total, log, summary=summary, finished=True
+        stdscr, palette, total, total, log, summary=summary, finished=True
     )
     stdscr.getch()
 
@@ -294,7 +398,7 @@ def _loop(
     current_actions: dict[str, Action],
 ) -> bool:
     curses.curs_set(0)
-    pink = curses.color_pair(_init_pink())
+    palette = _init_palette()
     selected = {c.name for c in categories if store.exists(c.name)}
     chosen: dict[str, Action] = {}
     name_width = max((len(c.name) for c in categories), default=8)
@@ -313,7 +417,7 @@ def _loop(
         height, width = stdscr.getmaxyx()
 
         for idx, line in enumerate(_ART):
-            _addline(stdscr, idx, 0, line, width, pink | curses.A_BOLD)
+            _addline(stdscr, idx, 0, line, width, palette.art)
         instr_row = len(_ART)
         _addline(
             stdscr,
@@ -321,25 +425,23 @@ def _loop(
             0,
             "[space] toggle   [a] action (this row)   [enter] install   [q] cancel",
             width,
-            pink,
+            palette.muted,
         )
 
-        # Column header on the row between the instructions and the list (the
+        # Column header on the row between the instructions and the list, each
+        # label in its column's colour so the shades double as a legend (the
         # 8-char indent lines up with format_row's marker columns).
         if source_width:
-            col_header = (
-                " " * 8
-                + f"{'SOURCE':<{source_width}}  "
-                + f"{'CATEGORY':<{name_width}}  ACTION"
-            )
-            _addline(
-                stdscr,
-                instr_row + 1,
-                0,
-                col_header,
-                width,
-                pink | curses.A_BOLD,
-            )
+            header_segs: list[tuple[str, int]] = [
+                (" " * 8, palette.text),
+                (
+                    f"{'SOURCE':<{source_width}}  ",
+                    palette.source | curses.A_BOLD,
+                ),
+                (f"{'CATEGORY':<{name_width}}  ", palette.text | curses.A_BOLD),
+                ("ACTION", palette.action | curses.A_BOLD),
+            ]
+            _draw_segments(stdscr, instr_row + 1, 0, header_segs)
 
         list_top = instr_row + 2
         visible = max(1, height - list_top - 1)
@@ -350,23 +452,62 @@ def _loop(
 
         for i in range(top, min(top + visible, len(categories))):
             category = categories[i]
-            row = format_row(
-                category,
-                selected=category.name in selected,
-                installed=store.exists(category.name),
-                action=chosen.get(category.name),
-                default_action=current_actions.get(
-                    category.name, category.disposition
-                ),
-                cursor=(i == cursor),
-                name_width=name_width,
-                source_width=source_width,
+            is_selected = category.name in selected
+            is_installed = store.exists(category.name)
+            effective = chosen.get(category.name) or current_actions.get(
+                category.name, category.disposition
             )
-            attr = pink | (curses.A_REVERSE if i == cursor else curses.A_NORMAL)
-            _addline(stdscr, list_top + (i - top), 0, row, width, attr)
+            row_y = list_top + (i - top)
+            if i == cursor:
+                # The focused row is one solid highlighted bar.
+                row = format_row(
+                    category,
+                    selected=is_selected,
+                    installed=is_installed,
+                    action=chosen.get(category.name),
+                    default_action=current_actions.get(
+                        category.name, category.disposition
+                    ),
+                    cursor=True,
+                    name_width=name_width,
+                    source_width=source_width,
+                )
+                _addline(
+                    stdscr,
+                    row_y,
+                    0,
+                    row,
+                    width,
+                    palette.accent | curses.A_REVERSE,
+                )
+                continue
+            segs: list[tuple[str, int]] = [
+                ("  ", palette.text),  # cursor column (blank when not focused)
+                (
+                    f"{'[x]' if is_selected else '[ ]'} ",
+                    palette.accent if is_selected else palette.muted,
+                ),
+                (
+                    f"{'*' if is_installed else ' '} ",
+                    palette.action if is_installed else palette.text,
+                ),
+            ]
+            if source_width:
+                segs.append(
+                    (
+                        f"{source_label(category.source):<{source_width}}  ",
+                        palette.source,
+                    )
+                )
+            segs.append((f"{category.name:<{name_width}}  ", palette.text))
+            segs.append(
+                (f"{effective.value:<7}  ", _action_attr(effective, palette))
+            )
+            segs.append((category.description, palette.muted))
+            _draw_segments(stdscr, row_y, 0, segs)
 
         footer = f"{len(selected)} selected / {len(categories)}"
-        _addline(stdscr, height - 1, 0, footer, width, pink | curses.A_BOLD)
+        _addline(stdscr, height - 1, 0, footer, width, palette.accent)
         stdscr.refresh()
 
         key = stdscr.getch()
@@ -404,6 +545,9 @@ def _loop(
                 return False
             actions = {n: chosen[n] for n in names if n in chosen}
             _run_install(
-                stdscr, pink, Selection(names=names, actions=actions), installer
+                stdscr,
+                palette,
+                Selection(names=names, actions=actions),
+                installer,
             )
             return True

@@ -7,7 +7,36 @@ rendering and labels are pulled out so they can be.
 from __future__ import annotations
 
 from egguard.categories import Action, get
-from egguard.tui import _cycle_action, action_label, bar_fill, format_row
+from egguard.tui import (
+    Palette,
+    _action_attr,
+    _cycle_action,
+    _status_attr,
+    action_label,
+    bar_fill,
+    format_row,
+)
+
+
+def _palette() -> Palette:
+    # Distinct sentinel values so each role is identifiable in assertions.
+    return Palette(art=1, text=2, muted=3, source=4, action=5, accent=6)
+
+
+def test_action_attr_uses_a_distinct_shade_per_action() -> None:
+    p = _palette()
+    assert _action_attr(Action.DENY, p) == p.accent
+    assert _action_attr(Action.WARN, p) == p.action
+    assert _action_attr(Action.AUP, p) == p.source
+    assert _action_attr(Action.PERMIT, p) == p.muted
+
+
+def test_status_attr_colours_by_leading_mark() -> None:
+    p = _palette()
+    assert _status_attr("! x  failed: boom", p) == p.accent
+    assert _status_attr("+ x  updated (5 domains)", p) == p.action
+    assert _status_attr("= x  unchanged", p) == p.muted
+    assert _status_attr("something else", p) == p.text
 
 
 def test_action_label() -> None:
