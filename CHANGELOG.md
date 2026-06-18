@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.1] — 2026-06-18
+
+### Fixed
+
+- The picker no longer leaks the run's JSON onto the curses screen. The toolbox
+  library writes its structured logs straight to stdout (not via Python
+  logging), so the picker now skips the SIEM summary log during its run and
+  captures stdout/stderr for the duration of the in-place install.
+
 ## [2.1.0] — 2026-06-18
 
 ### Added
@@ -95,7 +104,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Apache-2.0 license for the code; `NOTICE` carrying the upstream CC BY-SA 4.0
   attribution for the UT1 data.
 
-[Unreleased]: https://github.com/parsymonie/egguard/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/parsymonie/egguard/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/parsymonie/egguard/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/parsymonie/egguard/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/parsymonie/egguard/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/parsymonie/egguard/releases/tag/v1.0.0
