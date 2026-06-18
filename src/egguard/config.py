@@ -7,6 +7,7 @@ target the EnforceGate vX toolbox sidecar's shared-volume layout.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,10 @@ DEFAULT_USER_AGENT = "EGGuard/2.1 (EnforceGate vX toolbox; +https://github.com/p
 # appended to the export URL path. Leave abusech_auth_key empty to disable the
 # abuse.ch feeds. Verify the exact base/export path against your own account.
 DEFAULT_ABUSECH_BASE_URL = "https://urlhaus-api.abuse.ch/v2/files/exports"
+
+# Env var used as a fallback when the config file carries no abuse.ch key, so
+# the secret can stay out of config.yaml on disk.
+ENV_ABUSECH_AUTH_KEY = "EGGUARD_ABUSECH_AUTH_KEY"
 
 # Example placeholders from our docs/config; treat these as "no key set" so the
 # user gets a clear "need an Auth-Key" message instead of a failed download.
@@ -81,6 +86,12 @@ class Config:
     abusech_auth_key: str = ""
 
     def __post_init__(self) -> None:
+        # An explicit key in the config file wins; otherwise fall back to the
+        # environment so the secret need not live on disk.
+        if not self.abusech_auth_key:
+            self.abusech_auth_key = _clean_auth_key(
+                os.environ.get(ENV_ABUSECH_AUTH_KEY, "")
+            )
         if not _is_two_digit_prefix(self.policy_prefix):
             raise ConfigError(
                 f"policy_prefix must be a two-digit string, got {self.policy_prefix!r}"

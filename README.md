@@ -282,13 +282,18 @@ config and the feed becomes installable like any other category:
 abusech_auth_key: "your-abuse-ch-auth-key"
 ```
 
+To keep the secret out of a file on disk, leave the config key unset and pass
+it through the environment instead (the config value wins when both are set):
+
 ```bash
+export EGGUARD_ABUSECH_AUTH_KEY="your-abuse-ch-auth-key"
 egguard install urlhaus
 ```
 
-Without a key the abuse.ch feeds are skipped. The key is held only in your
-config and is never written to logs or error messages. Verify the export
-base/path and the data's terms of use against your own abuse.ch account.
+Without a key the abuse.ch feeds are skipped, and `install urlhaus` says so
+plainly. The key is held only in your config or environment and is never
+written to logs or error messages. Verify the export base/path and the data's
+terms of use against your own abuse.ch account.
 
 [abusech]: https://abuse.ch/
 

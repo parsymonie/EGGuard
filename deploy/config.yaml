@@ -18,7 +18,9 @@ base_url: "http://dsi.ut-capitole.fr/blacklists/download"
 
 # abuse.ch feeds (e.g. the `urlhaus` category) need a FREE Auth-Key from
 # https://auth.abuse.ch/. Without a key they are skipped. Verify the export
-# base/path against your own account before relying on it.
+# base/path against your own account before relying on it. To keep the secret
+# off disk, leave this commented and export EGGUARD_ABUSECH_AUTH_KEY instead
+# (this config value wins when both are set).
 # abusech_auth_key: "your-abuse-ch-auth-key"
 # abusech_base_url: "https://urlhaus-api.abuse.ch/v2/files/exports"
 
