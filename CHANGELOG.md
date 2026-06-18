@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- On terminals with only 8/16 colours (e.g. `TERM=xterm`), the picker's pink
+  shades all collapsed onto one magenta, so the palette looked flat. The picker
+  now differentiates the roles by style (bold/dim/underline/reverse) in that
+  case, so the columns stay distinguishable even without 256-colour support.
+  Use a 256-colour terminal (`TERM=xterm-256color`) to get the actual pinks.
+
 ## [2.3.0] — 2026-06-18
 
 ### Changed

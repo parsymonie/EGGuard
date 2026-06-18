@@ -12,10 +12,18 @@ from egguard.tui import (
     _action_attr,
     _cycle_action,
     _status_attr,
+    _styled_palette,
     action_label,
     bar_fill,
     format_row,
 )
+
+
+def test_styled_palette_keeps_columns_distinguishable() -> None:
+    # On a colour-poor terminal every role collapses to magenta, so the
+    # per-role styles must still tell the main columns apart.
+    p = _styled_palette()
+    assert len({p.text, p.source, p.muted, p.accent}) == 4
 
 
 def _palette() -> Palette:

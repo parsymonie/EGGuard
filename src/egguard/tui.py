@@ -190,24 +190,44 @@ _PINK_ROLES: tuple[tuple[str, int, tuple[int, int, int]], ...] = (
 )
 
 
+# Per-role style bits, applied so roles stay distinguishable even when the
+# terminal has too few colours to give each role its own pink (everything then
+# collapses onto magenta, and only these attributes tell the columns apart).
+_ROLE_STYLE: dict[str, int] = {
+    "art": curses.A_BOLD,
+    "text": curses.A_NORMAL,
+    "muted": curses.A_DIM,
+    "source": curses.A_UNDERLINE,
+    "action": curses.A_BOLD,
+    "accent": curses.A_BOLD | curses.A_REVERSE,
+}
+
+
+def _styled_palette() -> Palette:
+    """Build a palette from *attrs* alone (no distinct colours available)."""
+    s = _ROLE_STYLE
+    return Palette(
+        art=s["art"],
+        text=s["text"],
+        muted=s["muted"],
+        source=s["source"],
+        action=s["action"],
+        accent=s["accent"],
+    )
+
+
 def _init_palette() -> Palette:
     """Set up the pink palette and return its per-role attributes.
 
     The author is a little pig, so the picker is pink — but in several shades
     so columns and components are easy to tell apart. Degrades gracefully:
     redefinable RGB where available, the fixed xterm-256 pinks on 256-colour
-    terminals, then magenta with style bits, then plain styles with no colour.
+    terminals, then a single magenta with per-role *styles* (bold/dim/underline/
+    reverse) so the columns still differ, then plain styles with no colour.
     """
     if not curses.has_colors():
-        # No colour at all: lean on bold/dim so roles still differ a little.
-        return Palette(
-            art=curses.A_BOLD,
-            text=curses.A_NORMAL,
-            muted=curses.A_DIM,
-            source=curses.A_NORMAL,
-            action=curses.A_BOLD,
-            accent=curses.A_BOLD | curses.A_REVERSE,
-        )
+        # No colour at all: distinguish roles by style only.
+        return _styled_palette()
 
     curses.start_color()
     try:
@@ -216,7 +236,25 @@ def _init_palette() -> Palette:
     except curses.error:
         background = curses.COLOR_BLACK
 
+    # Distinct pink shades need either redefinable colour or the xterm-256
+    # palette. On 8/16-colour terminals every role would be the same magenta,
+    # so fall back to style-based differentiation instead.
     can_custom = curses.can_change_color() and curses.COLORS > 16
+    if not can_custom and curses.COLORS < 256:
+        try:
+            curses.init_pair(1, curses.COLOR_MAGENTA, background)
+            base = curses.color_pair(1)
+        except curses.error:
+            base = 0
+        return Palette(
+            art=base | _ROLE_STYLE["art"],
+            text=base | _ROLE_STYLE["text"],
+            muted=base | _ROLE_STYLE["muted"],
+            source=base | _ROLE_STYLE["source"],
+            action=base | _ROLE_STYLE["action"],
+            accent=base | _ROLE_STYLE["accent"],
+        )
+
     attrs: dict[str, int] = {}
     for i, (role, idx, rgb) in enumerate(_PINK_ROLES, start=1):
         foreground = curses.COLOR_MAGENTA
@@ -226,8 +264,8 @@ def _init_palette() -> Palette:
                 curses.init_color(color_id, *rgb)
                 foreground = color_id
             except curses.error:
-                foreground = idx if curses.COLORS >= 256 else foreground
-        elif curses.COLORS >= 256:
+                foreground = idx
+        else:  # COLORS >= 256
             foreground = idx
         try:
             curses.init_pair(i, foreground, background)
@@ -235,8 +273,7 @@ def _init_palette() -> Palette:
         except curses.error:
             attrs[role] = 0
 
-    # Add a little weight to the prominent roles so they stand out even when
-    # the terminal collapsed several shades onto the same magenta.
+    # A little weight on the prominent roles, on top of their distinct colours.
     return Palette(
         art=attrs["art"] | curses.A_BOLD,
         text=attrs["text"],
