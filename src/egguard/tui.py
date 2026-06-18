@@ -190,40 +190,46 @@ def _draw_progress(
     summary: str,
     finished: bool,
 ) -> None:
-    """Draw a reverse-video bar plus the per-category status returned so far."""
+    """Draw the art header, a reverse-video bar, and the per-category status."""
     stdscr.erase()
     height, width = stdscr.getmaxyx()
     bar_w = min(48, max(10, width - 12))
     ratio = 1.0 if total <= 0 else max(0.0, min(1.0, done / total))
     filled = bar_fill(done, total, bar_w)
-    left = max(0, (width - bar_w - 7) // 2)
+    left = 2
+
+    # Keep the same pig header as the picker.
+    for idx, line in enumerate(_ART):
+        _addline(stdscr, idx, 0, line, width, pink | curses.A_BOLD)
+    top = len(_ART)
 
     title = "Done. Press any key." if finished else "Installing categories..."
-    _addstr(stdscr, 0, left, title, pink | curses.A_BOLD)
+    _addstr(stdscr, top, left, title, pink | curses.A_BOLD)
 
     # [ <filled: reverse-video> <empty> ]  NN%
-    _addstr(stdscr, 2, left, "[", pink)
-    _addstr(stdscr, 2, left + 1, " " * filled, pink | curses.A_REVERSE)
-    _addstr(stdscr, 2, left + 1 + filled, " " * (bar_w - filled), pink)
-    _addstr(stdscr, 2, left + 1 + bar_w, "]", pink)
+    bar_row = top + 2
+    _addstr(stdscr, bar_row, left, "[", pink)
+    _addstr(stdscr, bar_row, left + 1, " " * filled, pink | curses.A_REVERSE)
+    _addstr(stdscr, bar_row, left + 1 + filled, " " * (bar_w - filled), pink)
+    _addstr(stdscr, bar_row, left + 1 + bar_w, "]", pink)
     _addstr(
         stdscr,
-        2,
+        bar_row,
         left + 3 + bar_w,
         f"{int(ratio * 100):3d}%",
         pink | curses.A_BOLD,
     )
-    _addstr(stdscr, 3, left, f"{done}/{total} categories", pink)
+    _addstr(stdscr, bar_row + 1, left, f"{done}/{total} categories", pink)
 
     # The per-category status from the engine/client API, newest at the bottom.
-    log_top = 5
+    log_top = bar_row + 3
     reserve = 2 if (finished and summary) else 0
     avail = max(0, height - log_top - reserve)
     for i, line in enumerate(log[-avail:] if avail else []):
-        _addstr(stdscr, log_top + i, 2, line, pink)
+        _addstr(stdscr, log_top + i, left, line, pink)
 
     if finished and summary:
-        _addstr(stdscr, height - 2, 2, summary, pink | curses.A_BOLD)
+        _addstr(stdscr, height - 2, left, summary, pink | curses.A_BOLD)
 
     stdscr.refresh()
 
