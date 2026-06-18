@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import curses
 import locale
+import logging
 import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -243,14 +244,17 @@ def _run_install(
         )
 
     report(0, total, "")
-    # Curses owns the screen, so silence stderr (EGGuard + the toolbox library
-    # logging) during the install; otherwise those lines corrupt the display.
+    # Curses owns the screen, so keep the install's output off it: disable all
+    # Python logging (EGGuard's own and the toolbox library's structured logs,
+    # whatever stream they target) and redirect stray stderr to /dev/null.
     devnull = os.open(os.devnull, os.O_WRONLY)
     saved_stderr = os.dup(2)
+    logging.disable(logging.CRITICAL)
     try:
         os.dup2(devnull, 2)
         summary = installer(selection, report)
     finally:
+        logging.disable(logging.NOTSET)
         os.dup2(saved_stderr, 2)
         os.close(saved_stderr)
         os.close(devnull)
