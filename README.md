@@ -303,9 +303,18 @@ Confirm your abuse.ch account's email after signing up — until you do, the
 downloads return `403 Email address not confirmed`. Without a key the abuse.ch
 feeds are skipped, and `install urlhaus` says so plainly. The key is held only
 in your config or environment and is never written to logs or error messages.
-Check the data's terms of use against your own abuse.ch account.
+
+> [!IMPORTANT]
+> The abuse.ch data is **not** under an open license. Under the abuse.ch /
+> Spamhaus [terms of use][abusech-terms], the feeds are free of charge but
+> **commercial or for-profit use may require a paid subscription**, and there
+> are conditions on redistribution and derivative works. EGGuard fetches the
+> feeds at runtime with *your own* Auth-Key and never bundles or redistributes
+> the data — but you are responsible for ensuring your use complies with those
+> terms. The UT1 feeds (CC BY-SA 4.0) have no such commercial restriction.
 
 [abusech]: https://abuse.ch/
+[abusech-terms]: https://abuse.ch/terms-of-use/
 
 ---
 

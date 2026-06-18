@@ -345,6 +345,12 @@ def _cmd_install(cfg: Config, args: argparse.Namespace) -> int:
     except KeyError as exc:
         logging.critical("unknown category: %s", exc.args[0])
         return EXIT_FATAL
+    if any(c.source == "abusech" for c in selected):
+        logging.info(
+            "note: abuse.ch feeds are governed by "
+            "https://abuse.ch/terms-of-use/ — free for non-commercial use; "
+            "commercial use may require a paid subscription"
+        )
     return _do_refresh(
         cfg,
         selected,

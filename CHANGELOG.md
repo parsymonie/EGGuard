@@ -21,6 +21,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   keys are treated as unset, so installing an abuse.ch feed without a key
   reports that one is needed instead of failing on the download. A feed can name
   an absolute download URL, so feeds on different abuse.ch hosts work.
+- abuse.ch licensing is now stated accurately: the data is **not** open-licensed
+  (unlike UT1's CC BY-SA 4.0) — under the abuse.ch / Spamhaus terms it is free
+  for non-commercial use but commercial use may require a paid subscription, and
+  redistribution/derivatives are restricted. NOTICE and the README spell this
+  out, and `egguard install` prints a one-line terms reminder when an abuse.ch
+  feed is installed. EGGuard never bundles the data; it is fetched at runtime
+  with the operator's own Auth-Key using conditional requests.
 - Both `egguard list` and the `select` picker now show a SOURCE column
   (`UT1` / `abuse.ch`) so it is clear which feed each category comes from; the
   picker only adds the column when more than one source is present, and shows a
