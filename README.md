@@ -101,10 +101,12 @@ eghost toolbox cron edit
 #   15 3 * * *  python3 /var/lib/enforcegate-toolbox/repos/egguard/scripts/egguard update
 ```
 
-Install the categories you want once (this also populates their lists):
+Install the categories you want once (this also populates their lists). Run it
+inside the toolbox, where Python and the cloned repo live:
 
 ```bash
-eghost toolbox repo run egguard -- install adult malware phishing
+eghost toolbox shell
+python3 /var/lib/enforcegate-toolbox/repos/egguard/scripts/egguard install adult malware phishing
 ```
 
 ### Local / development install
