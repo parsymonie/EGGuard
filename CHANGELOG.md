@@ -10,11 +10,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- A pink curses category picker (`egguard select`): browse the catalogue,
-  toggle categories with space, set a per-category action with `a`, then
-  install in place with a progress bar. An alternative to the verbs.
-- Pink CLI output for logs, `list` and `version`, suppressed when the stream
-  is not a terminal or when `NO_COLOR` is set (help keeps argparse's default).
+- A pink curses category picker (`egguard select`): browse the catalogue
+  (each row shows its current effective action), toggle with space, set a
+  per-category action with `a`, then install in place with a progress bar. An
+  alternative to the verbs; the pink theme is confined to this picker.
+- `egguard help` prints the same top-level help as running with no arguments.
 - Package-manager style CLI: `install CATEGORY…`, `update [CATEGORY…]`
   (refreshes the installed set; the cron command), `remove CATEGORY…`, and
   `list` (now marks installed categories). Categories are positional.
@@ -31,6 +31,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Renamed** the `Disposition` action enum to `Action`.
 - Replaced the single `refresh` command with `install`/`update`/`remove`.
+- `egguard list` shows just the installed marker, name and action (the
+  description column is gone).
 - Running `egguard` with no subcommand prints help and exits, instead of
   defaulting to a full refresh.
 - Default `policies_dir` is now `/etc/enforcegate-shared/rules.d` to match the

@@ -28,13 +28,14 @@ def test_progress_bar() -> None:
     assert "100%" in progress_bar(0, 0, 8)
 
 
-def test_format_row_marks_state_and_catalogue_action() -> None:
-    category = get("social_networks")  # catalogue suggests warn
+def test_format_row_marks_state_and_default_action() -> None:
+    category = get("social_networks")
     row = format_row(
         category,
         selected=True,
         installed=True,
         action=None,
+        default_action=Action.WARN,  # the action currently in effect
         cursor=True,
         name_width=20,
     )
@@ -42,7 +43,7 @@ def test_format_row_marks_state_and_catalogue_action() -> None:
     assert row.startswith(">")  # cursor
     assert "[x]" in row  # selected
     assert " * " in row  # installed marker
-    assert "warn" in row  # catalogue action shown when no override
+    assert "warn" in row  # the effective action shown when no override
     assert "social_networks" in row
 
 
@@ -53,9 +54,10 @@ def test_format_row_shows_action_override() -> None:
         selected=False,
         installed=False,
         action=Action.DENY,
+        default_action=Action.WARN,
         cursor=False,
         name_width=20,
     )
 
     assert "[ ]" in row
-    assert "deny" in row  # override shown instead of the catalogue warn
+    assert "deny" in row  # the per-row override wins over the default

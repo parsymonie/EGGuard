@@ -54,9 +54,16 @@ Installer = Callable[["Selection", ProgressFn], None]
 
 
 def pick(
-    categories: list[Category], store: StateStore, installer: Installer
+    categories: list[Category],
+    store: StateStore,
+    installer: Installer,
+    current_actions: dict[str, Action],
 ) -> bool:
     """Run the picker and, on confirm, install the selection in place.
+
+    *current_actions* maps each category to the action currently in effect
+    (reflecting installed policies and config), shown until the operator
+    overrides it with ``a``.
 
     Returns True if an install was applied, False if cancelled or nothing was
     chosen.
@@ -66,7 +73,9 @@ def pick(
     """
     # Honour the terminal's encoding so accented descriptions render.
     locale.setlocale(locale.LC_ALL, "")
-    return bool(curses.wrapper(_loop, categories, store, installer))
+    return bool(
+        curses.wrapper(_loop, categories, store, installer, current_actions)
+    )
 
 
 def action_label(action: Action | None) -> str:
@@ -80,14 +89,19 @@ def format_row(
     selected: bool,
     installed: bool,
     action: Action | None,
+    default_action: Action,
     cursor: bool,
     name_width: int,
 ) -> str:
-    """Render one catalogue row for the picker (pure, for testing)."""
+    """Render one catalogue row for the picker (pure, for testing).
+
+    *action* is the operator's per-row override (or None); *default_action* is
+    the action currently in effect, shown when there is no override.
+    """
     pointer = ">" if cursor else " "
     box = "[x]" if selected else "[ ]"
     inst = "*" if installed else " "
-    effective = (action or category.disposition).value
+    effective = (action or default_action).value
     return (
         f"{pointer} {box} {inst} {category.name:<{name_width}}  "
         f"{effective:<7}  {category.description}"
@@ -202,6 +216,7 @@ def _loop(
     categories: list[Category],
     store: StateStore,
     installer: Installer,
+    current_actions: dict[str, Action],
 ) -> bool:
     curses.curs_set(0)
     pink = curses.color_pair(_init_pink())
@@ -241,6 +256,9 @@ def _loop(
                 selected=category.name in selected,
                 installed=store.exists(category.name),
                 action=chosen.get(category.name),
+                default_action=current_actions.get(
+                    category.name, category.disposition
+                ),
                 cursor=(i == cursor),
                 name_width=name_width,
             )

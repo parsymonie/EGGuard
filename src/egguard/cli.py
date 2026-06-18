@@ -19,7 +19,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from . import __version__, color
+from . import __version__
 from . import categories as catalogue
 from .categories import Action, Category
 from .config import Config, ConfigError
@@ -44,13 +44,6 @@ EXIT_PARTIAL = 1  # some categories failed
 EXIT_FATAL = 2  # could not start (bad config, unwritable volume, ...)
 
 _DEFAULT_CONFIG = Path("/var/lib/enforcegate-toolbox/config.yaml")
-
-
-class _PinkLogFormatter(logging.Formatter):
-    """Logging formatter that tints each line pink on a TTY (stderr)."""
-
-    def format(self, record: logging.LogRecord) -> str:
-        return color.pink(super().format(record), sys.stderr)
 
 
 # Friendly aliases for the four engine actions, accepted by --action.
@@ -151,6 +144,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("list", help="show the catalogue, marking installed")
     sub.add_parser("version", help="print version and exit")
+    sub.add_parser("help", help="show this help and exit")
 
     return parser
 
@@ -174,15 +168,13 @@ def _run(argv: list[str] | None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    handler = logging.StreamHandler()
-    handler.setFormatter(_PinkLogFormatter("%(levelname)s %(message)s"))
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
-        handlers=[handler],
+        format="%(levelname)s %(message)s",
     )
 
-    # No subcommand: show help instead of doing anything side-effecting.
-    if args.command is None:
+    # No subcommand, or the `help` command: show help, do nothing else.
+    if args.command in (None, "help"):
         parser.print_help()
         return EXIT_OK
 
@@ -195,7 +187,7 @@ def _run(argv: list[str] | None) -> int:
         return EXIT_FATAL
 
     if command == "version":
-        print(color.pink(f"egguard {__version__}", sys.stdout))
+        print(f"egguard {__version__}")
         return EXIT_OK
     if command == "list":
         return _cmd_list(cfg)
@@ -211,23 +203,30 @@ def _run(argv: list[str] | None) -> int:
     parser.error(f"unknown command: {command}")
 
 
-def _cmd_list(cfg: Config) -> int:
-    store = StateStore(cfg.state_dir)
-    width = max(len(c.name) for c in catalogue.CATALOGUE)
+def _current_actions(cfg: Config, store: StateStore) -> dict[str, Action]:
+    """Resolve the effective action for every category, reflecting installs."""
+    actions: dict[str, Action] = {}
     for category in catalogue.CATALOGUE:
         st = store.load(category.name)
         try:
-            installed_action = Action(st.action) if st.action else None
+            installed = Action(st.action) if st.action else None
         except ValueError:
-            installed_action = None
-        action = resolve_action(category, cfg, installed=installed_action)
-        mark = "*" if store.exists(category.name) else " "
-        line = (
-            f"{mark} {category.name:<{width}}  {action.value:<7}  "
-            f"{category.description}"
+            installed = None
+        actions[category.name] = resolve_action(
+            category, cfg, installed=installed
         )
-        print(color.pink(line, sys.stdout))
-    print(color.pink("\n* = installed", sys.stdout))
+    return actions
+
+
+def _cmd_list(cfg: Config) -> int:
+    store = StateStore(cfg.state_dir)
+    actions = _current_actions(cfg, store)
+    width = max(len(c.name) for c in catalogue.CATALOGUE)
+    for category in catalogue.CATALOGUE:
+        mark = "*" if store.exists(category.name) else " "
+        action = actions[category.name].value
+        print(f"{mark} {category.name:<{width}}  {action}")
+    print("\n* = installed")
     return EXIT_OK
 
 
@@ -430,8 +429,9 @@ def _cmd_select(cfg: Config, args: argparse.Namespace) -> int:
             )
         )
 
+    current = _current_actions(cfg, store)
     try:
-        applied = tui.pick(list(catalogue.CATALOGUE), store, installer)
+        applied = tui.pick(list(catalogue.CATALOGUE), store, installer, current)
     except curses.error as exc:
         logging.critical(
             "cannot open the selector (no interactive terminal?): %s", exc
