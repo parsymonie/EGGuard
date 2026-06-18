@@ -27,6 +27,15 @@ logic) is an independent work and is licensed under Apache-2.0; the
 ShareAlike obligation attaches to the UT1 data and its derivatives, not to
 this tooling.
 
+EGGuard can optionally consume feeds published by abuse.ch (e.g. URLhaus).
+
+    Source:  https://urlhaus.abuse.ch/  (https://abuse.ch/)
+    Terms:   https://abuse.ch/terms-of-use/
+
+These feeds require a free Auth-Key and are likewise retrieved at runtime,
+not distributed in this repository. Consult abuse.ch's terms of use for the
+applicable licensing and any redistribution conditions.
+
 ------------------------------------------------------------------------
 
 "EnforceGate" and "EnforceGate vX" are products of Exosys Sàrl. EGGuard is

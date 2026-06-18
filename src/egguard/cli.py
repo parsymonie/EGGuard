@@ -172,6 +172,9 @@ def _run(argv: list[str] | None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s %(message)s",
     )
+    # urllib3 logs full request URLs at DEBUG, which would leak the abuse.ch
+    # auth key embedded in export URLs; keep it quiet.
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
 
     # No subcommand, or the `help` command: show help, do nothing else.
     if args.command in (None, "help"):
@@ -272,6 +275,8 @@ def _build_pipeline(
         timeout=cfg.timeout,
         retries=cfg.retries,
         user_agent=cfg.user_agent,
+        abusech_base_url=cfg.abusech_base_url,
+        abusech_auth_key=cfg.abusech_auth_key,
     )
     return bridge, fetcher
 

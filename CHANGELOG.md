@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Multi-source feeds: the catalogue is no longer UT1-only. A `Category` now
+  carries a `source` (which namespaces its file/rule names as
+  `<source>-<name>`) and a feed format, and the parser handles hosts-format
+  lists in addition to UT1 tarballs.
+- abuse.ch URLhaus feed (`egguard install urlhaus`): active malware hosts,
+  `deny` by default. Needs a free Auth-Key (`abusech_auth_key` in config); the
+  key is held only in config and redacted from logs/errors. The feed is
+  skipped when no key is set.
+
 ### Changed
 
 - Require Python **3.10+** (`requires-python = ">=3.10"`). The dataclasses use

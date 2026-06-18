@@ -219,7 +219,7 @@ class Refresher:
     def _refresh_one(self, category: Category) -> CategoryResult:
         state = self._store.load(category.name)
         try:
-            fetched = self._fetcher.fetch(category.name, state)
+            fetched = self._fetcher.fetch(category, state)
         except NotModified:
             return CategoryResult(
                 category.name,
@@ -242,7 +242,7 @@ class Refresher:
             )
 
         try:
-            domains = extract_domains(fetched.content)
+            domains = extract_domains(fetched.content, category.fmt)
         except ParseError as exc:
             return CategoryResult(
                 category.name, Outcome.FAILED, message=str(exc)

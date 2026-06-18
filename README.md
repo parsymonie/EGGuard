@@ -206,10 +206,10 @@ fetcher = Fetcher(
     retries=3,
     user_agent="egguard-example/1.0",
 )
-result = fetcher.fetch(category.name)      # unconditional one-off fetch
+result = fetcher.fetch(category)           # unconditional one-off fetch
 
 # 2. normalise/de-duplicate the hosts and write the list.
-domains = extract_domains(result.content)
+domains = extract_domains(result.content, category.fmt)
 list_path.write_text("\n".join(domains) + "\n")
 
 # 3. render the matching .policy with the action you want.
@@ -270,6 +270,27 @@ UT1 ships some categories as *whitelists* rather than block lists — notably
 default. Place them at a **lower** precedence than your deny rules (e.g. a
 `config.yaml` that gives them their own prefix, or an operator rule at `10-`)
 so the permit is evaluated first.
+
+### abuse.ch feeds
+
+Besides UT1, EGGuard can pull domain feeds from [abuse.ch][abusech] — currently
+`urlhaus` (active malware-distribution hosts, `deny` by default). These need a
+**free Auth-Key** from [auth.abuse.ch](https://auth.abuse.ch/); set it in the
+config and the feed becomes installable like any other category:
+
+```yaml
+abusech_auth_key: "your-abuse-ch-auth-key"
+```
+
+```bash
+egguard install urlhaus
+```
+
+Without a key the abuse.ch feeds are skipped. The key is held only in your
+config and is never written to logs or error messages. Verify the export
+base/path and the data's terms of use against your own abuse.ch account.
+
+[abusech]: https://abuse.ch/
 
 ---
 

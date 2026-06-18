@@ -31,6 +31,11 @@ DEFAULT_RETRIES = 3
 DEFAULT_MIN_DOMAINS = 1
 DEFAULT_USER_AGENT = "EGGuard/2.1 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
 
+# abuse.ch URLhaus exports require a free Auth-Key (https://auth.abuse.ch/),
+# appended to the export URL path. Leave abusech_auth_key empty to disable the
+# abuse.ch feeds. Verify the exact base/export path against your own account.
+DEFAULT_ABUSECH_BASE_URL = "https://urlhaus-api.abuse.ch/v2/files/exports"
+
 
 class ConfigError(ValueError):
     """Raised when a configuration file is structurally invalid."""
@@ -59,6 +64,10 @@ class Config:
     # Category selection. ``include`` wins over ``skip`` when non-empty.
     include: list[str] = field(default_factory=list)
     skip: list[str] = field(default_factory=list)
+
+    # abuse.ch feeds. An empty auth key disables them.
+    abusech_base_url: str = DEFAULT_ABUSECH_BASE_URL
+    abusech_auth_key: str = ""
 
     def __post_init__(self) -> None:
         if not _is_two_digit_prefix(self.policy_prefix):
@@ -114,6 +123,10 @@ class Config:
             actions=_parse_actions(raw.get("actions"), source),
             include=_parse_str_list(raw.get("include"), "include", source),
             skip=_parse_str_list(raw.get("skip"), "skip", source),
+            abusech_base_url=str(
+                raw.get("abusech_base_url", DEFAULT_ABUSECH_BASE_URL)
+            ),
+            abusech_auth_key=str(raw.get("abusech_auth_key", "")),
         )
         return cfg
 
