@@ -428,7 +428,7 @@ def _loop(
             palette.muted,
         )
 
-        # Column header on the row between the instructions and the list, each
+        # A blank line after the instructions, then the column header, each
         # label in its column's colour so the shades double as a legend (the
         # 8-char indent lines up with format_row's marker columns).
         if source_width:
@@ -441,9 +441,11 @@ def _loop(
                 (f"{'CATEGORY':<{name_width}}  ", palette.text | curses.A_BOLD),
                 ("ACTION", palette.action | curses.A_BOLD),
             ]
-            _draw_segments(stdscr, instr_row + 1, 0, header_segs)
+            _draw_segments(stdscr, instr_row + 2, 0, header_segs)
 
-        list_top = instr_row + 2
+        # One blank line after the instructions either way; the column header
+        # (when shown) takes the row after that.
+        list_top = instr_row + 3 if source_width else instr_row + 2
         visible = max(1, height - list_top - 1)
         if cursor < top:
             top = cursor
