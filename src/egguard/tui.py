@@ -18,7 +18,7 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from .categories import Action, Category
+from .categories import Action, Category, source_label
 from .state import StateStore
 
 # The `a` key cycles through the four real actions, starting from whatever is
@@ -109,10 +109,14 @@ def format_row(
     box = "[x]" if selected else "[ ]"
     inst = "*" if installed else " "
     effective = (action or default_action).value
-    src = f"{category.source:<{source_width}}  " if source_width else ""
+    src = (
+        f"{source_label(category.source):<{source_width}}  "
+        if source_width
+        else ""
+    )
     return (
-        f"{pointer} {box} {inst} {category.name:<{name_width}}  "
-        f"{src}{effective:<7}  {category.description}"
+        f"{pointer} {box} {inst} {src}{category.name:<{name_width}}  "
+        f"{effective:<7}  {category.description}"
     )
 
 
@@ -296,7 +300,11 @@ def _loop(
     name_width = max((len(c.name) for c in categories), default=8)
     # Only show a source column when more than one source is present.
     sources = {c.source for c in categories}
-    source_width = max(len(s) for s in sources) if len(sources) > 1 else 0
+    source_width = (
+        max(len(source_label(c.source)) for c in categories)
+        if len(sources) > 1
+        else 0
+    )
     cursor = 0
     top = 0
 
@@ -315,6 +323,23 @@ def _loop(
             width,
             pink,
         )
+
+        # Column header on the row between the instructions and the list (the
+        # 8-char indent lines up with format_row's marker columns).
+        if source_width:
+            col_header = (
+                " " * 8
+                + f"{'SOURCE':<{source_width}}  "
+                + f"{'CATEGORY':<{name_width}}  ACTION"
+            )
+            _addline(
+                stdscr,
+                instr_row + 1,
+                0,
+                col_header,
+                width,
+                pink | curses.A_BOLD,
+            )
 
         list_top = instr_row + 2
         visible = max(1, height - list_top - 1)

@@ -41,6 +41,14 @@ FMT_UT1_TARBALL = (
 )
 FMT_HOSTFILE = "hostfile"  # a hosts-format list ("0.0.0.0 domain" per line)
 
+# Friendly display names for sources, used by `list` and the picker.
+_SOURCE_LABELS = {"ut1": "UT1", "abusech": "abuse.ch"}
+
+
+def source_label(source: str) -> str:
+    """Return a human-friendly name for a feed *source* (e.g. ``abuse.ch``)."""
+    return _SOURCE_LABELS.get(source, source)
+
 
 @dataclass(frozen=True, slots=True)
 class Category:

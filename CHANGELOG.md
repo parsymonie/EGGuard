@@ -21,8 +21,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   keys are treated as unset, so installing an abuse.ch feed without a key
   reports that one is needed instead of failing on the download. A feed can name
   an absolute download URL, so feeds on different abuse.ch hosts work.
-- The `select` picker now shows a source column (UT1 vs abuse.ch) whenever more
-  than one source is present, so the abuse.ch feeds are distinguishable.
+- Both `egguard list` and the `select` picker now show a SOURCE column
+  (`UT1` / `abuse.ch`) so it is clear which feed each category comes from; the
+  picker only adds the column when more than one source is present, and shows a
+  column header.
 
 ### Changed
 

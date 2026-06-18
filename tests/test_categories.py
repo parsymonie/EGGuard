@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 
-from egguard.categories import FMT_HOSTFILE, FMT_UT1_TARBALL, get
+from egguard.categories import (
+    FMT_HOSTFILE,
+    FMT_UT1_TARBALL,
+    get,
+    source_label,
+)
+
+
+def test_source_label() -> None:
+    assert source_label("ut1") == "UT1"
+    assert source_label("abusech") == "abuse.ch"
+    assert source_label("unknown") == "unknown"  # falls back to the raw name
 
 
 def test_ut1_feed_naming_unchanged() -> None:

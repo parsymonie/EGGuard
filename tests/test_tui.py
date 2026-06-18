@@ -79,7 +79,7 @@ def test_format_row_shows_source_when_requested() -> None:
         name_width=20,
         source_width=8,
     )
-    assert "abusech" in row
+    assert "abuse.ch" in row  # friendly source label
     assert "urlhaus" in row
 
     # Without a source column (single source), nothing extra is added.
@@ -92,4 +92,4 @@ def test_format_row_shows_source_when_requested() -> None:
         cursor=False,
         name_width=20,
     )
-    assert "ut1" not in plain
+    assert "UT1" not in plain
