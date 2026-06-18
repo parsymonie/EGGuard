@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-06-18
+
+### Added
+
+- The `select` picker shows live per-category status from each run result
+  (`+ adult  updated (N domains)`, `= … unchanged`, `! … failed: …`) and a
+  one-line summary on the done screen (e.g. `4 updated, 0 unchanged | engine
+  reloaded`). The progress bar is now a reverse-video fill.
+
+### Fixed
+
+- In the picker, the `a` key starts the action cycle from the action currently
+  in effect, so the first press always advances (previously it was a no-op when
+  the row was already on the displayed action).
+- The picker no longer lets the install's log output corrupt the curses screen:
+  Python logging is disabled and stderr is redirected for the duration of the
+  in-place install.
+- README: the "install once" step uses the in-toolbox launcher directly, since
+  this toolbox's `repo run` does not forward `-- args`.
+
 ## [2.0.0] — 2026-06-17
 
 ### Added
@@ -75,6 +95,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Apache-2.0 license for the code; `NOTICE` carrying the upstream CC BY-SA 4.0
   attribution for the UT1 data.
 
-[Unreleased]: https://github.com/parsymonie/egguard/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/parsymonie/egguard/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/parsymonie/egguard/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/parsymonie/egguard/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/parsymonie/egguard/releases/tag/v1.0.0

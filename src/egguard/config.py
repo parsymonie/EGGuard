@@ -29,7 +29,7 @@ DEFAULT_POLICY_PREFIX = "60"
 DEFAULT_TIMEOUT = 120
 DEFAULT_RETRIES = 3
 DEFAULT_MIN_DOMAINS = 1
-DEFAULT_USER_AGENT = "EGGuard/2.0 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
+DEFAULT_USER_AGENT = "EGGuard/2.1 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
 
 
 class ConfigError(ValueError):
