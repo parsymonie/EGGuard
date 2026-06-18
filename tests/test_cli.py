@@ -5,7 +5,34 @@ from __future__ import annotations
 import pytest
 
 from egguard.categories import Action
-from egguard.cli import EXIT_OK, build_parser, main
+from egguard.cli import EXIT_OK, _status_line, _summary_line, build_parser, main
+from egguard.refresh import CategoryResult, Outcome, RefreshSummary
+
+
+def test_status_line_formats_each_outcome() -> None:
+    updated = CategoryResult("adult", Outcome.UPDATED, 42)
+    assert _status_line(updated) == "+ adult  updated (42 domains)"
+
+    unchanged = CategoryResult("ai", Outcome.UNCHANGED, 5)
+    assert _status_line(unchanged) == "= ai  unchanged"
+
+    failed = CategoryResult("x", Outcome.FAILED, message="boom")
+    assert _status_line(failed) == "! x  failed: boom"
+
+
+def test_summary_line() -> None:
+    summary = RefreshSummary(
+        results=[
+            CategoryResult("a", Outcome.UPDATED, 1),
+            CategoryResult("b", Outcome.UNCHANGED, 0),
+        ],
+        reloaded=True,
+    )
+    line = _summary_line(summary, dry_run=False)
+    assert "1 updated" in line
+    assert "1 unchanged" in line
+    assert "0 failed" in line
+    assert "engine reloaded" in line
 
 
 def test_no_subcommand_prints_help(capsys: pytest.CaptureFixture[str]) -> None:

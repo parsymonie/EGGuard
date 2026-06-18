@@ -11,16 +11,16 @@ from __future__ import annotations
 import contextlib
 import curses
 import locale
+import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from .categories import Action, Category
 from .state import StateStore
 
-# Per-category actions are cycled with the `a` key; ``None`` leaves the action
-# to config/catalogue resolution.
-_ACTIONS: tuple[Action | None, ...] = (
-    None,
+# The `a` key cycles through the four real actions, starting from whatever is
+# currently in effect for the row.
+_CYCLE: tuple[Action, ...] = (
     Action.DENY,
     Action.WARN,
     Action.AUP,
@@ -49,8 +49,9 @@ class Selection:
     actions: dict[str, Action] = field(default_factory=dict)
 
 
-# Runs the actual install for a selection, reporting progress as it goes.
-Installer = Callable[["Selection", ProgressFn], None]
+# Runs the install for a selection, reporting progress as it goes and returning
+# a short human summary (e.g. "4 updated, 0 unchanged | engine reloaded").
+Installer = Callable[["Selection", ProgressFn], str]
 
 
 def pick(
@@ -108,22 +109,17 @@ def format_row(
     )
 
 
-def progress_bar(done: int, total: int, width: int) -> str:
-    """Render a text progress bar like ``[####----]  50%`` (pure, for testing)."""
-    width = max(1, width)
+def bar_fill(done: int, total: int, width: int) -> int:
+    """Filled-cell count for a *width*-cell progress bar (pure, for testing)."""
+    if width <= 0:
+        return 0
     ratio = 1.0 if total <= 0 else max(0.0, min(1.0, done / total))
-    filled = int(ratio * width)
-    return (
-        "["
-        + "#" * filled
-        + "-" * (width - filled)
-        + f"] {int(ratio * 100):3d}%"
-    )
+    return round(ratio * width)
 
 
-def _cycle_action(current: Action | None) -> Action | None:
-    """Return the next action in the cycle after *current*."""
-    return _ACTIONS[(_ACTIONS.index(current) + 1) % len(_ACTIONS)]
+def _cycle_action(current: Action) -> Action:
+    """Return the next action after *current* (deny -> warn -> aup -> permit)."""
+    return _CYCLE[(_CYCLE.index(current) + 1) % len(_CYCLE)]
 
 
 def _addline(
@@ -139,6 +135,19 @@ def _addline(
         return
     with contextlib.suppress(curses.error):
         stdscr.addnstr(y, x, text, max(0, width - 1), attr)
+
+
+def _addstr(
+    stdscr: curses.window, y: int, x: int, text: str, attr: int
+) -> None:
+    """Draw *text* at (y, x), clamped to the screen, ignoring edge errors."""
+    if y < 0 or x < 0:
+        return
+    _height, width = stdscr.getmaxyx()
+    if x >= width:
+        return
+    with contextlib.suppress(curses.error):
+        stdscr.addnstr(y, x, text, max(0, width - x - 1), attr)
 
 
 def _init_pink() -> int:
@@ -168,46 +177,87 @@ def _init_pink() -> int:
     return 1
 
 
+def _draw_progress(
+    stdscr: curses.window,
+    pink: int,
+    done: int,
+    total: int,
+    log: list[str],
+    *,
+    summary: str,
+    finished: bool,
+) -> None:
+    """Draw a reverse-video bar plus the per-category status returned so far."""
+    stdscr.erase()
+    height, width = stdscr.getmaxyx()
+    bar_w = min(48, max(10, width - 12))
+    ratio = 1.0 if total <= 0 else max(0.0, min(1.0, done / total))
+    filled = bar_fill(done, total, bar_w)
+    left = max(0, (width - bar_w - 7) // 2)
+
+    title = "Done. Press any key." if finished else "Installing categories..."
+    _addstr(stdscr, 0, left, title, pink | curses.A_BOLD)
+
+    # [ <filled: reverse-video> <empty> ]  NN%
+    _addstr(stdscr, 2, left, "[", pink)
+    _addstr(stdscr, 2, left + 1, " " * filled, pink | curses.A_REVERSE)
+    _addstr(stdscr, 2, left + 1 + filled, " " * (bar_w - filled), pink)
+    _addstr(stdscr, 2, left + 1 + bar_w, "]", pink)
+    _addstr(
+        stdscr,
+        2,
+        left + 3 + bar_w,
+        f"{int(ratio * 100):3d}%",
+        pink | curses.A_BOLD,
+    )
+    _addstr(stdscr, 3, left, f"{done}/{total} categories", pink)
+
+    # The per-category status from the engine/client API, newest at the bottom.
+    log_top = 5
+    reserve = 2 if (finished and summary) else 0
+    avail = max(0, height - log_top - reserve)
+    for i, line in enumerate(log[-avail:] if avail else []):
+        _addstr(stdscr, log_top + i, 2, line, pink)
+
+    if finished and summary:
+        _addstr(stdscr, height - 2, 2, summary, pink | curses.A_BOLD)
+
+    stdscr.refresh()
+
+
 def _run_install(
     stdscr: curses.window,
     pink: int,
     selection: Selection,
     installer: Installer,
 ) -> None:
-    """Drive the install in place, drawing a progress bar after each category."""
+    """Run the install in place, showing live per-category status."""
     total = len(selection.names)
+    log: list[str] = []
 
     def report(done: int, total_: int, message: str) -> None:
-        stdscr.erase()
-        _height, width = stdscr.getmaxyx()
-        _addline(
-            stdscr,
-            0,
-            0,
-            "Installing selected categories",
-            width,
-            pink | curses.A_BOLD,
+        if done >= 1:
+            log.append(message)
+        _draw_progress(
+            stdscr, pink, done, total_, log, summary="", finished=False
         )
-        bar = progress_bar(done, total_, max(10, width - 8))
-        _addline(stdscr, 2, 0, bar, width, pink)
-        _addline(stdscr, 3, 0, f"{done}/{total_}  {message}", width, pink)
-        stdscr.refresh()
 
-    report(0, total, "starting...")
-    installer(selection, report)
+    report(0, total, "")
+    # Curses owns the screen, so silence stderr (EGGuard + the toolbox library
+    # logging) during the install; otherwise those lines corrupt the display.
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    saved_stderr = os.dup(2)
+    try:
+        os.dup2(devnull, 2)
+        summary = installer(selection, report)
+    finally:
+        os.dup2(saved_stderr, 2)
+        os.close(saved_stderr)
+        os.close(devnull)
 
-    stdscr.erase()
-    _height, width = stdscr.getmaxyx()
-    _addline(stdscr, 0, 0, "Done. Press any key.", width, pink | curses.A_BOLD)
-    _addline(
-        stdscr,
-        2,
-        0,
-        progress_bar(total, total, max(10, width - 8)),
-        width,
-        pink,
+    _draw_progress(
+        stdscr, pink, total, total, log, summary=summary, finished=True
     )
-    stdscr.refresh()
     stdscr.getch()
 
 
@@ -291,13 +341,13 @@ def _loop(
             else:
                 selected.add(name)
         elif key in (ord("a"), ord("A")):
-            # Cycle the action for this row only.
-            name = categories[cursor].name
-            nxt = _cycle_action(chosen.get(name))
-            if nxt is None:
-                chosen.pop(name, None)
-            else:
-                chosen[name] = nxt
+            # Cycle the action for this row, starting from what's in effect so
+            # the first press always advances visibly.
+            category = categories[cursor]
+            current = chosen.get(category.name) or current_actions.get(
+                category.name, category.disposition
+            )
+            chosen[category.name] = _cycle_action(current)
         elif key in (curses.KEY_ENTER, 10, 13):
             names = [c.name for c in categories if c.name in selected]
             if not names:

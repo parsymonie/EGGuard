@@ -396,6 +396,39 @@ def _cmd_remove(cfg: Config, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _status_line(result: CategoryResult) -> str:
+    """One per-category status line for the picker, from the run result."""
+    mark = {"updated": "+", "unchanged": "=", "failed": "!"}.get(
+        result.outcome.value, " "
+    )
+    if result.outcome.value == "updated":
+        detail = f" ({result.domain_count} domains)"
+    elif result.outcome.value == "failed":
+        detail = f": {result.message}"
+    else:
+        detail = ""
+    return f"{mark} {result.name}  {result.outcome.value}{detail}"
+
+
+def _summary_line(summary: RefreshSummary, *, dry_run: bool) -> str:
+    """A short one-line summary of a run, for the picker's done screen."""
+    unchanged = (
+        len(summary.results) - len(summary.updated) - len(summary.failed)
+    )
+    if dry_run:
+        note = "dry run (nothing written)"
+    elif summary.reloaded:
+        note = "engine reloaded"
+    elif summary.changed:
+        note = "engine NOT reloaded"
+    else:
+        note = "no changes"
+    return (
+        f"{len(summary.updated)} updated, {unchanged} unchanged, "
+        f"{len(summary.failed)} failed | {note}"
+    )
+
+
 def _cmd_select(cfg: Config, args: argparse.Namespace) -> int:
     import curses
 
@@ -406,10 +439,10 @@ def _cmd_select(cfg: Config, args: argparse.Namespace) -> int:
 
     def installer(
         selection: Selection, progress: Callable[[int, int, str], None]
-    ) -> None:
+    ) -> str:
         built = _build_pipeline(cfg, dry_run=args.dry_run)
         if built is None:
-            return
+            return "setup failed"
         bridge, fetcher = built
         refresher = Refresher(
             cfg,
@@ -421,13 +454,13 @@ def _cmd_select(cfg: Config, args: argparse.Namespace) -> int:
         )
 
         def on_progress(done: int, total: int, result: CategoryResult) -> None:
-            progress(done, total, f"{result.name}: {result.outcome.value}")
+            progress(done, total, _status_line(result))
 
-        summary_box.append(
-            refresher.run(
-                _select_named(selection.names), on_progress=on_progress
-            )
+        summary = refresher.run(
+            _select_named(selection.names), on_progress=on_progress
         )
+        summary_box.append(summary)
+        return _summary_line(summary, dry_run=args.dry_run)
 
     current = _current_actions(cfg, store)
     try:
