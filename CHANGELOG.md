@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Require Python **3.10+** (`requires-python = ">=3.10"`). The dataclasses use
+  `slots=True`, which needs 3.10, so 3.9 never actually worked; the CI matrix
+  drops 3.9 accordingly.
+
 ## [2.1.1] — 2026-06-18
 
 ### Fixed
