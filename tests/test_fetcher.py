@@ -43,6 +43,18 @@ def test_url_for_abusech_uses_remote_path_without_key() -> None:
     assert "SECRET" not in url
 
 
+def test_url_for_abusech_absolute_remote_used_as_is() -> None:
+    fetcher = _fetcher(
+        abusech_base_url="https://urlhaus.abuse.ch/downloads",
+        abusech_auth_key="SECRET",
+    )
+    # threatfox carries an absolute URL (different host); it must be used
+    # verbatim (with a trailing slash), not joined onto the URLhaus base.
+    url = fetcher.url_for(get("threatfox"))
+    assert url == "https://threatfox.abuse.ch/downloads/hostfile/"
+    assert "urlhaus" not in url
+
+
 def test_abusech_without_key_fails_clearly() -> None:
     with pytest.raises(FetchError, match="abusech_auth_key"):
         _fetcher().fetch(get("urlhaus"))

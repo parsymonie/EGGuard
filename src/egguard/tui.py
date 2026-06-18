@@ -35,7 +35,7 @@ _ART: tuple[str, ...] = (
     r"     _____",
     r"    /     \,~~",
     r"   | o   o |     E G G u a r d",
-    r"   |  (..) |     UT1 category picker for EnforceGate vX",
+    r"   |  (..) |     category picker for EnforceGate vX (UT1 + abuse.ch)",
     r"    \_____/",
     r"     ''  ''",
 )
@@ -96,19 +96,23 @@ def format_row(
     default_action: Action,
     cursor: bool,
     name_width: int,
+    source_width: int = 0,
 ) -> str:
     """Render one catalogue row for the picker (pure, for testing).
 
     *action* is the operator's per-row override (or None); *default_action* is
     the action currently in effect, shown when there is no override.
+    *source_width* (>0) adds a source column so multi-source feeds (UT1,
+    abuse.ch) are distinguishable.
     """
     pointer = ">" if cursor else " "
     box = "[x]" if selected else "[ ]"
     inst = "*" if installed else " "
     effective = (action or default_action).value
+    src = f"{category.source:<{source_width}}  " if source_width else ""
     return (
         f"{pointer} {box} {inst} {category.name:<{name_width}}  "
-        f"{effective:<7}  {category.description}"
+        f"{src}{effective:<7}  {category.description}"
     )
 
 
@@ -290,6 +294,9 @@ def _loop(
     selected = {c.name for c in categories if store.exists(c.name)}
     chosen: dict[str, Action] = {}
     name_width = max((len(c.name) for c in categories), default=8)
+    # Only show a source column when more than one source is present.
+    sources = {c.source for c in categories}
+    source_width = max(len(s) for s in sources) if len(sources) > 1 else 0
     cursor = 0
     top = 0
 
@@ -328,6 +335,7 @@ def _loop(
                 ),
                 cursor=(i == cursor),
                 name_width=name_width,
+                source_width=source_width,
             )
             attr = pink | (curses.A_REVERSE if i == cursor else curses.A_NORMAL)
             _addline(stdscr, list_top + (i - top), 0, row, width, attr)

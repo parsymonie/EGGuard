@@ -273,10 +273,18 @@ so the permit is evaluated first.
 
 ### abuse.ch feeds
 
-Besides UT1, EGGuard can pull domain feeds from [abuse.ch][abusech] — currently
-`urlhaus` (active malware-distribution hosts, `deny` by default). These need a
-**free Auth-Key** from [auth.abuse.ch](https://auth.abuse.ch/); set it in the
-config and the feed becomes installable like any other category:
+Besides UT1, EGGuard can pull domain feeds from [abuse.ch][abusech]:
+
+| Category | Source | Domains (approx.) | Default |
+| -------- | ------ | ----------------- | ------- |
+| `urlhaus` | URLhaus | ~600 active malware-distribution hosts | `deny` |
+| `threatfox` | ThreatFox | ~44,000 malware-IOC domains, many families | `deny` |
+
+(abuse.ch's other projects — Feodo Tracker, SSLBL, MalwareBazaar — publish IPs,
+TLS fingerprints and file hashes rather than domains, so they don't fit
+EGGuard's domain-list model.) The abuse.ch feeds need a **free Auth-Key** from
+[auth.abuse.ch](https://auth.abuse.ch/); set it in the config and the feeds
+become installable like any other category:
 
 ```yaml
 abusech_auth_key: "your-abuse-ch-auth-key"
@@ -287,7 +295,7 @@ it through the environment instead (the config value wins when both are set):
 
 ```bash
 export EGGUARD_ABUSECH_AUTH_KEY="your-abuse-ch-auth-key"
-egguard install urlhaus
+egguard install urlhaus threatfox
 ```
 
 The key is sent as the `Auth-Key` HTTP header, so it never appears in a URL.

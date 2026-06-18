@@ -12,13 +12,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   carries a `source` (which namespaces its file/rule names as
   `<source>-<name>`) and a feed format, and the parser handles hosts-format
   lists in addition to UT1 tarballs.
-- abuse.ch URLhaus feed (`egguard install urlhaus`): active malware hosts,
-  `deny` by default. Needs a free Auth-Key (`abusech_auth_key` in config, or the
-  `EGGUARD_ABUSECH_AUTH_KEY` env var when you'd rather keep the secret off
-  disk). The key is sent as the `Auth-Key` HTTP header (never in a URL) and is
-  redacted from logs/errors. Blank or placeholder keys are treated as unset, so
-  installing an abuse.ch feed without a key reports that one is needed instead
-  of failing on the download.
+- abuse.ch feeds: `urlhaus` (active malware hosts, ~600 domains) and
+  `threatfox` (malware-IOC domains across many families, ~44,000), both `deny`
+  by default and installable like any other category. They need a free Auth-Key
+  (`abusech_auth_key` in config, or the `EGGUARD_ABUSECH_AUTH_KEY` env var when
+  you'd rather keep the secret off disk). The key is sent as the `Auth-Key` HTTP
+  header (never in a URL) and is redacted from logs/errors. Blank or placeholder
+  keys are treated as unset, so installing an abuse.ch feed without a key
+  reports that one is needed instead of failing on the download. A feed can name
+  an absolute download URL, so feeds on different abuse.ch hosts work.
+- The `select` picker now shows a source column (UT1 vs abuse.ch) whenever more
+  than one source is present, so the abuse.ch feeds are distinguishable.
 
 ### Changed
 

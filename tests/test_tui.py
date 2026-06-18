@@ -65,3 +65,31 @@ def test_format_row_shows_action_override() -> None:
 
     assert "[ ]" in row
     assert "deny" in row  # the per-row override wins over the default
+
+
+def test_format_row_shows_source_when_requested() -> None:
+    # With a source column, an abuse.ch feed is marked as such in the picker.
+    row = format_row(
+        get("urlhaus"),
+        selected=False,
+        installed=False,
+        action=None,
+        default_action=Action.DENY,
+        cursor=False,
+        name_width=20,
+        source_width=8,
+    )
+    assert "abusech" in row
+    assert "urlhaus" in row
+
+    # Without a source column (single source), nothing extra is added.
+    plain = format_row(
+        get("adult"),
+        selected=False,
+        installed=False,
+        action=None,
+        default_action=Action.DENY,
+        cursor=False,
+        name_width=20,
+    )
+    assert "ut1" not in plain

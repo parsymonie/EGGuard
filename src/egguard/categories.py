@@ -182,6 +182,8 @@ CATALOGUE: tuple[Category, ...] = (
     Category("webhosting", "Web-hosting services", _D.WARN),
     Category("webmail", "Webmail services", _D.WARN),
     # --- abuse.ch feeds (need a free Auth-Key; see config.abusech_auth_key) -- #
+    # ``remote`` is a path under ``abusech_base_url`` (URLhaus), or an absolute
+    # URL when the feed lives on a different abuse.ch host (ThreatFox).
     Category(
         "urlhaus",
         "abuse.ch URLhaus — active malware-distribution hosts",
@@ -189,6 +191,14 @@ CATALOGUE: tuple[Category, ...] = (
         source="abusech",
         fmt=FMT_HOSTFILE,
         remote="hostfile",
+    ),
+    Category(
+        "threatfox",
+        "abuse.ch ThreatFox — malware IOC domains (many families)",
+        _D.DENY,
+        source="abusech",
+        fmt=FMT_HOSTFILE,
+        remote="https://threatfox.abuse.ch/downloads/hostfile",
     ),
 )
 

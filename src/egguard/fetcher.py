@@ -61,10 +61,15 @@ class Fetcher:
         """Return the download URL for *category*.
 
         The abuse.ch key is sent as a header, not in the URL, so the URL is
-        safe to log. abuse.ch download paths need a trailing slash.
+        safe to log. abuse.ch download paths need a trailing slash. A feed
+        whose ``remote`` is an absolute URL (e.g. ThreatFox, on a different
+        abuse.ch host) is used as-is; otherwise it hangs off the abuse.ch base.
         """
         if category.source == "abusech":
-            return f"{self._abusech_base}/{category.fetch_path}/"
+            path = category.fetch_path
+            if path.startswith(("http://", "https://")):
+                return path if path.endswith("/") else f"{path}/"
+            return f"{self._abusech_base}/{path}/"
         return f"{self._base_url}/{category.fetch_path}.tar.gz"
 
     def fetch(

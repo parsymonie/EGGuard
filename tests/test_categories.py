@@ -23,3 +23,13 @@ def test_abusech_feed_naming() -> None:
     assert feed.slug == "abusech-urlhaus"
     assert feed.list_filename == "abusech-urlhaus.list"
     assert feed.policy_filename("60") == "60-abusech-urlhaus.policy"
+
+
+def test_threatfox_feed_naming() -> None:
+    feed = get("threatfox")
+    assert feed.source == "abusech"
+    assert feed.fmt == FMT_HOSTFILE
+    # ThreatFox lives on its own abuse.ch host, so its remote is absolute.
+    assert feed.fetch_path.startswith("https://threatfox.abuse.ch/")
+    assert feed.slug == "abusech-threatfox"
+    assert feed.list_filename == "abusech-threatfox.list"
