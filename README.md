@@ -290,10 +290,12 @@ export EGGUARD_ABUSECH_AUTH_KEY="your-abuse-ch-auth-key"
 egguard install urlhaus
 ```
 
-Without a key the abuse.ch feeds are skipped, and `install urlhaus` says so
-plainly. The key is held only in your config or environment and is never
-written to logs or error messages. Verify the export base/path and the data's
-terms of use against your own abuse.ch account.
+The key is sent as the `Auth-Key` HTTP header, so it never appears in a URL.
+Confirm your abuse.ch account's email after signing up — until you do, the
+downloads return `403 Email address not confirmed`. Without a key the abuse.ch
+feeds are skipped, and `install urlhaus` says so plainly. The key is held only
+in your config or environment and is never written to logs or error messages.
+Check the data's terms of use against your own abuse.ch account.
 
 [abusech]: https://abuse.ch/
 

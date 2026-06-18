@@ -3,8 +3,8 @@
 Wraps :mod:`requests` with conditional-request support (ETag /
 If-Modified-Since), a bounded retry loop with exponential backoff, and a clear
 ``NotModified`` signal so the caller can cheaply skip unchanged feeds. Both UT1
-tarballs and abuse.ch exports (which embed a secret Auth-Key in the URL) are
-handled; the key is never written into errors or logs.
+tarballs and abuse.ch exports (which authenticate with a secret Auth-Key sent
+as an HTTP header) are handled; the key is never written into errors or logs.
 """
 
 from __future__ import annotations
@@ -58,9 +58,13 @@ class Fetcher:
         self._session.headers["User-Agent"] = user_agent
 
     def url_for(self, category: Category) -> str:
-        """Return the download URL for *category* (may embed the auth key)."""
+        """Return the download URL for *category*.
+
+        The abuse.ch key is sent as a header, not in the URL, so the URL is
+        safe to log. abuse.ch download paths need a trailing slash.
+        """
         if category.source == "abusech":
-            return f"{self._abusech_base}/{self._abusech_key}/{category.fetch_path}"
+            return f"{self._abusech_base}/{category.fetch_path}/"
         return f"{self._base_url}/{category.fetch_path}.tar.gz"
 
     def fetch(
@@ -84,6 +88,8 @@ class Fetcher:
 
         url = self.url_for(category)
         headers = _conditional_headers(state or CategoryState())
+        if category.source == "abusech":
+            headers["Auth-Key"] = self._abusech_key
         last_exc: Exception | None = None
 
         for attempt in range(1, self._retries + 1):

@@ -31,16 +31,16 @@ def test_url_for_ut1_tarball() -> None:
     )
 
 
-def test_url_for_abusech_embeds_key_and_remote_path() -> None:
+def test_url_for_abusech_uses_remote_path_without_key() -> None:
     fetcher = _fetcher(
-        abusech_base_url="https://abuse.example/exports",
+        abusech_base_url="https://abuse.example/downloads",
         abusech_auth_key="SECRET",
     )
-    # name is "urlhaus" but the remote path is "hostfile".
-    assert (
-        fetcher.url_for(get("urlhaus"))
-        == "https://abuse.example/exports/SECRET/hostfile"
-    )
+    # name is "urlhaus" but the remote path is "hostfile"; the key is sent as
+    # a header, so it must never appear in the URL.
+    url = fetcher.url_for(get("urlhaus"))
+    assert url == "https://abuse.example/downloads/hostfile/"
+    assert "SECRET" not in url
 
 
 def test_abusech_without_key_fails_clearly() -> None:
@@ -48,30 +48,43 @@ def test_abusech_without_key_fails_clearly() -> None:
         _fetcher().fetch(get("urlhaus"))
 
 
-class _FailingSession:
-    """A session whose GET fails with the URL in the message (like requests)."""
+class _CapturingSession:
+    """A session that records the request and fails, leaking what it saw.
+
+    Mimics a library whose error text echoes the headers, so the redaction
+    guard has something to scrub even now that the key travels in a header.
+    """
 
     headers: ClassVar[dict[str, str]] = {}
+    seen_headers: dict[str, str]
 
     def get(
-        self, url: str, headers: object = None, timeout: object = None
+        self,
+        url: str,
+        headers: dict[str, str] | None = None,
+        timeout: object = None,
     ) -> object:
-        raise requests.ConnectionError(f"failed connecting to {url}")
+        self.seen_headers = dict(headers or {})
+        leaked = self.seen_headers.get("Auth-Key", "")
+        raise requests.ConnectionError(f"failed: {url} (Auth-Key: {leaked})")
 
 
-def test_fetch_error_redacts_the_auth_key() -> None:
+def test_fetch_sends_auth_key_header_and_redacts_it() -> None:
+    session = _CapturingSession()
     fetcher = Fetcher(
         "http://ut1.example",
         timeout=10,
         retries=1,
         user_agent="test",
-        abusech_base_url="https://abuse.example/exports",
+        abusech_base_url="https://abuse.example/downloads",
         abusech_auth_key="SUPERSECRET",
-        session=cast(requests.Session, _FailingSession()),
+        session=cast(requests.Session, session),
     )
     with pytest.raises(FetchError) as excinfo:
         fetcher.fetch(get("urlhaus"))
 
+    # the key is sent as a header, never in the URL
+    assert session.seen_headers["Auth-Key"] == "SUPERSECRET"
     message = str(excinfo.value)
     assert "SUPERSECRET" not in message  # the key must never leak
     assert "<auth-key>" in message

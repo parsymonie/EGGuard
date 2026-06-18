@@ -33,9 +33,9 @@ DEFAULT_MIN_DOMAINS = 1
 DEFAULT_USER_AGENT = "EGGuard/2.1 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
 
 # abuse.ch URLhaus exports require a free Auth-Key (https://auth.abuse.ch/),
-# appended to the export URL path. Leave abusech_auth_key empty to disable the
-# abuse.ch feeds. Verify the exact base/export path against your own account.
-DEFAULT_ABUSECH_BASE_URL = "https://urlhaus-api.abuse.ch/v2/files/exports"
+# sent as the `Auth-Key` HTTP header (so it never appears in a URL). Leave
+# abusech_auth_key empty to disable the abuse.ch feeds.
+DEFAULT_ABUSECH_BASE_URL = "https://urlhaus.abuse.ch/downloads"
 
 # Env var used as a fallback when the config file carries no abuse.ch key, so
 # the secret can stay out of config.yaml on disk.
