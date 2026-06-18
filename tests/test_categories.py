@@ -1,0 +1,46 @@
+"""Tests for catalogue lookups and per-source feed naming."""
+
+from __future__ import annotations
+
+from egguard.categories import (
+    FMT_HOSTFILE,
+    FMT_UT1_TARBALL,
+    get,
+    source_label,
+)
+
+
+def test_source_label() -> None:
+    assert source_label("ut1") == "UT1"
+    assert source_label("abusech") == "abuse.ch"
+    assert source_label("unknown") == "unknown"  # falls back to the raw name
+
+
+def test_ut1_feed_naming_unchanged() -> None:
+    adult = get("adult")
+    assert adult.source == "ut1"
+    assert adult.fmt == FMT_UT1_TARBALL
+    assert adult.fetch_path == "adult"
+    assert adult.slug == "ut1-adult"
+    assert adult.list_filename == "ut1-adult.list"
+    assert adult.policy_filename("60") == "60-ut1-adult.policy"
+
+
+def test_abusech_feed_naming() -> None:
+    feed = get("urlhaus")
+    assert feed.source == "abusech"
+    assert feed.fmt == FMT_HOSTFILE
+    assert feed.fetch_path == "hostfile"  # remote path differs from the name
+    assert feed.slug == "abusech-urlhaus"
+    assert feed.list_filename == "abusech-urlhaus.list"
+    assert feed.policy_filename("60") == "60-abusech-urlhaus.policy"
+
+
+def test_threatfox_feed_naming() -> None:
+    feed = get("threatfox")
+    assert feed.source == "abusech"
+    assert feed.fmt == FMT_HOSTFILE
+    # ThreatFox lives on its own abuse.ch host, so its remote is absolute.
+    assert feed.fetch_path.startswith("https://threatfox.abuse.ch/")
+    assert feed.slug == "abusech-threatfox"
+    assert feed.list_filename == "abusech-threatfox.list"

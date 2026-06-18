@@ -11,12 +11,30 @@ from egguard.categories import Action, get
 from egguard.config import Config
 from egguard.fetcher import Fetcher, FetchResult
 from egguard.refresh import (
+    CategoryResult,
     Outcome,
     Refresher,
+    RefreshSummary,
     resolve_action,
     select_categories,
 )
 from egguard.state import CategoryState, StateStore
+
+
+def test_summary_counts_loaded_domains() -> None:
+    summary = RefreshSummary(
+        results=[
+            CategoryResult("a", Outcome.UPDATED, 100),
+            CategoryResult("b", Outcome.UNCHANGED, 50),
+            CategoryResult("c", Outcome.FAILED, 0, "boom"),
+        ]
+    )
+    # failed categories load nothing; the other two contribute their counts.
+    assert len(summary.loaded) == 2
+    assert summary.total_domains == 150
+    event = summary.as_event(dry_run=False)
+    assert '"rules":2' in event
+    assert '"domains":150' in event
 
 
 def test_state_roundtrip(tmp_path: Path) -> None:

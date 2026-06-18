@@ -206,10 +206,10 @@ fetcher = Fetcher(
     retries=3,
     user_agent="egguard-example/1.0",
 )
-result = fetcher.fetch(category.name)      # unconditional one-off fetch
+result = fetcher.fetch(category)           # unconditional one-off fetch
 
 # 2. normalise/de-duplicate the hosts and write the list.
-domains = extract_domains(result.content)
+domains = extract_domains(result.content, category.fmt)
 list_path.write_text("\n".join(domains) + "\n")
 
 # 3. render the matching .policy with the action you want.
@@ -270,6 +270,51 @@ UT1 ships some categories as *whitelists* rather than block lists — notably
 default. Place them at a **lower** precedence than your deny rules (e.g. a
 `config.yaml` that gives them their own prefix, or an operator rule at `10-`)
 so the permit is evaluated first.
+
+### abuse.ch feeds
+
+Besides UT1, EGGuard can pull domain feeds from [abuse.ch][abusech]:
+
+| Category | Source | Domains (approx.) | Default |
+| -------- | ------ | ----------------- | ------- |
+| `urlhaus` | URLhaus | ~600 active malware-distribution hosts | `deny` |
+| `threatfox` | ThreatFox | ~44,000 malware-IOC domains, many families | `deny` |
+
+(abuse.ch's other projects — Feodo Tracker, SSLBL, MalwareBazaar — publish IPs,
+TLS fingerprints and file hashes rather than domains, so they don't fit
+EGGuard's domain-list model.) The abuse.ch feeds need a **free Auth-Key** from
+[auth.abuse.ch](https://auth.abuse.ch/); set it in the config and the feeds
+become installable like any other category:
+
+```yaml
+abusech_auth_key: "your-abuse-ch-auth-key"
+```
+
+To keep the secret out of a file on disk, leave the config key unset and pass
+it through the environment instead (the config value wins when both are set):
+
+```bash
+export EGGUARD_ABUSECH_AUTH_KEY="your-abuse-ch-auth-key"
+egguard install urlhaus threatfox
+```
+
+The key is sent as the `Auth-Key` HTTP header, so it never appears in a URL.
+Confirm your abuse.ch account's email after signing up — until you do, the
+downloads return `403 Email address not confirmed`. Without a key the abuse.ch
+feeds are skipped, and `install urlhaus` says so plainly. The key is held only
+in your config or environment and is never written to logs or error messages.
+
+> [!IMPORTANT]
+> The abuse.ch data is **not** under an open license. Under the abuse.ch /
+> Spamhaus [terms of use][abusech-terms], the feeds are free of charge but
+> **commercial or for-profit use may require a paid subscription**, and there
+> are conditions on redistribution and derivative works. EGGuard fetches the
+> feeds at runtime with *your own* Auth-Key and never bundles or redistributes
+> the data — but you are responsible for ensuring your use complies with those
+> terms. The UT1 feeds (CC BY-SA 4.0) have no such commercial restriction.
+
+[abusech]: https://abuse.ch/
+[abusech-terms]: https://abuse.ch/terms-of-use/
 
 ---
 

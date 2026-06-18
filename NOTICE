@@ -27,6 +27,30 @@ logic) is an independent work and is licensed under Apache-2.0; the
 ShareAlike obligation attaches to the UT1 data and its derivatives, not to
 this tooling.
 
+EGGuard can optionally consume feeds published by abuse.ch (now part of
+Spamhaus) — currently URLhaus and ThreatFox.
+
+    Source:  https://urlhaus.abuse.ch/  https://threatfox.abuse.ch/
+             (https://abuse.ch/)
+    Terms:   https://abuse.ch/terms-of-use/
+
+These feeds are NOT distributed in this repository. EGGuard retrieves them at
+runtime using an Auth-Key that each operator obtains for their own abuse.ch
+account; the key is personal to that account and is not shared by this project.
+
+The abuse.ch data is not offered under an open license. Per the abuse.ch /
+Spamhaus terms of use, the datasets are provided free of charge, but:
+
+  - commercial or for-profit use may require a paid subscription;
+  - the terms place conditions on copying, redistributing, and creating
+    derivative works from the data and platforms.
+
+Each operator is responsible for reviewing the abuse.ch terms of use (and the
+per-platform policies linked from URLhaus and ThreatFox) and for ensuring their
+use of these feeds — particularly in a commercial setting — complies with them.
+EGGuard fetches the feeds with conditional requests so unchanged data is not
+re-downloaded.
+
 ------------------------------------------------------------------------
 
 "EnforceGate" and "EnforceGate vX" are products of Exosys Sàrl. EGGuard is

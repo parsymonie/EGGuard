@@ -1,9 +1,13 @@
-"""Extraction of domain entries from UT1 category tarballs.
+"""Extraction of domain entries from downloaded feeds.
 
-A UT1 tarball unpacks to ``<category>/domains`` (and optionally
-``<category>/urls`` and ``<category>/usage``). EGGuard reads the
-``domains`` member, normalises each entry, and returns a de-duplicated,
-sorted list suitable for an EnforceGate ``match-domain-list`` directive.
+Two feed formats are supported:
+
+* UT1 category tarballs — a ``<category>.tar.gz`` that unpacks to
+  ``<category>/domains`` (one bare hostname per line).
+* Hosts-format lists (e.g. abuse.ch URLhaus) — ``0.0.0.0 domain`` per line.
+
+Both are normalised into a de-duplicated, sorted list suitable for an
+EnforceGate ``match-domain-list`` directive.
 """
 
 from __future__ import annotations
@@ -12,9 +16,11 @@ import io
 import tarfile
 from pathlib import PurePosixPath
 
+from .categories import FMT_HOSTFILE, FMT_UT1_TARBALL
+
 
 class ParseError(RuntimeError):
-    """A tarball did not contain a usable ``domains`` member."""
+    """A feed could not be parsed into a usable domain list."""
 
 
 # A hardened cap on uncompressed size to defend against decompression
@@ -23,15 +29,21 @@ class ParseError(RuntimeError):
 _MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
 
 
-def extract_domains(tarball: bytes) -> list[str]:
-    """Return the normalised, de-duplicated, sorted domains in *tarball*.
+def extract_domains(content: bytes, fmt: str = FMT_UT1_TARBALL) -> list[str]:
+    """Return the normalised, de-duplicated, sorted domains in *content*.
+
+    *fmt* selects the parser (see the ``FMT_*`` constants in ``categories``).
 
     Raises:
-        ParseError: if no ``domains`` member is present or the archive is
-            malformed.
+        ParseError: if the feed is malformed or has no usable domains.
     """
-    seen: set[str] = set()
+    if fmt == FMT_HOSTFILE:
+        return _parse_hostfile(content)
+    return _parse_ut1_tarball(content)
 
+
+def _parse_ut1_tarball(tarball: bytes) -> list[str]:
+    seen: set[str] = set()
     try:
         with tarfile.open(fileobj=io.BytesIO(tarball), mode="r:gz") as archive:
             member = _find_domains_member(archive)
@@ -52,7 +64,25 @@ def extract_domains(tarball: bytes) -> list[str]:
         domain = _normalise(line)
         if domain is not None:
             seen.add(domain)
+    return sorted(seen)
 
+
+def _parse_hostfile(content: bytes) -> list[str]:
+    """Parse a hosts-format list, taking the host token from each line."""
+    if len(content) > _MAX_UNCOMPRESSED_BYTES:
+        raise ParseError(
+            f"hostfile is implausibly large ({len(content)} bytes)"
+        )
+    seen: set[str] = set()
+    for line in content.decode("utf-8", errors="replace").splitlines():
+        text = line.strip()
+        if not text or text.startswith("#"):
+            continue
+        # "0.0.0.0 domain" / "127.0.0.1 domain" / bare "domain": take the last
+        # whitespace-separated token as the host.
+        domain = _normalise(text.split()[-1])
+        if domain is not None:
+            seen.add(domain)
     return sorted(seen)
 
 

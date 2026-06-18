@@ -1,9 +1,10 @@
-"""HTTP fetching of UT1 category tarballs.
+"""HTTP fetching of category feeds.
 
 Wraps :mod:`requests` with conditional-request support (ETag /
-If-Modified-Since), a bounded retry loop with exponential backoff, and a
-clear ``NotModified`` signal so the caller can cheaply skip unchanged
-categories.
+If-Modified-Since), a bounded retry loop with exponential backoff, and a clear
+``NotModified`` signal so the caller can cheaply skip unchanged feeds. Both UT1
+tarballs and abuse.ch exports (which authenticate with a secret Auth-Key sent
+as an HTTP header) are handled; the key is never written into errors or logs.
 """
 
 from __future__ import annotations
@@ -13,11 +14,12 @@ from dataclasses import dataclass
 
 import requests
 
+from .categories import Category
 from .state import CategoryState
 
 
 class FetchError(RuntimeError):
-    """A category tarball could not be retrieved."""
+    """A feed could not be retrieved."""
 
 
 class NotModified(Exception):
@@ -26,7 +28,7 @@ class NotModified(Exception):
 
 @dataclass(slots=True)
 class FetchResult:
-    """A successfully downloaded tarball plus its caching headers."""
+    """A successfully downloaded feed plus its caching headers."""
 
     content: bytes
     etag: str
@@ -34,7 +36,7 @@ class FetchResult:
 
 
 class Fetcher:
-    """Downloads category tarballs over HTTP with caching and retries."""
+    """Downloads category feeds over HTTP with caching and retries."""
 
     def __init__(
         self,
@@ -43,32 +45,56 @@ class Fetcher:
         timeout: int,
         retries: int,
         user_agent: str,
+        abusech_base_url: str = "",
+        abusech_auth_key: str = "",
         session: requests.Session | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
+        self._abusech_base = abusech_base_url.rstrip("/")
+        self._abusech_key = abusech_auth_key
         self._timeout = timeout
         self._retries = retries
         self._session = session or requests.Session()
         self._session.headers["User-Agent"] = user_agent
 
-    def url_for(self, category: str) -> str:
-        """Return the download URL for *category*."""
-        return f"{self._base_url}/{category}.tar.gz"
+    def url_for(self, category: Category) -> str:
+        """Return the download URL for *category*.
+
+        The abuse.ch key is sent as a header, not in the URL, so the URL is
+        safe to log. abuse.ch download paths need a trailing slash. A feed
+        whose ``remote`` is an absolute URL (e.g. ThreatFox, on a different
+        abuse.ch host) is used as-is; otherwise it hangs off the abuse.ch base.
+        """
+        if category.source == "abusech":
+            path = category.fetch_path
+            if path.startswith(("http://", "https://")):
+                return path if path.endswith("/") else f"{path}/"
+            return f"{self._abusech_base}/{path}/"
+        return f"{self._base_url}/{category.fetch_path}.tar.gz"
 
     def fetch(
-        self, category: str, state: CategoryState | None = None
+        self, category: Category, state: CategoryState | None = None
     ) -> FetchResult:
-        """Download one category tarball.
+        """Download one feed.
 
         Uses conditional-request headers derived from *state*. Pass ``None``
         (the default) for an unconditional fetch.
 
         Raises:
             NotModified: if the server returns HTTP 304.
-            FetchError: if all attempts fail.
+            FetchError: if the feed can't be fetched (including a missing
+                abuse.ch auth key) after all retries.
         """
+        if category.source == "abusech" and not self._abusech_key:
+            raise FetchError(
+                f"{category.name}: abuse.ch feeds need 'abusech_auth_key' in "
+                f"config (get a free key at https://auth.abuse.ch/)"
+            )
+
         url = self.url_for(category)
         headers = _conditional_headers(state or CategoryState())
+        if category.source == "abusech":
+            headers["Auth-Key"] = self._abusech_key
         last_exc: Exception | None = None
 
         for attempt in range(1, self._retries + 1):
@@ -91,9 +117,23 @@ class Fetcher:
                 if attempt < self._retries:
                     time.sleep(_backoff_seconds(attempt))
 
-        raise FetchError(
-            f"{category}: download failed after {self._retries} attempt(s): {last_exc}"
-        ) from last_exc
+        # requests' exception text can contain the request URL (and thus the
+        # abuse.ch auth key), so redact it before surfacing the error.
+        message = (
+            f"{category.name}: download failed after {self._retries} "
+            f"attempt(s): {last_exc}"
+        )
+        if category.source == "abusech":
+            message += (
+                " (verify 'abusech_auth_key' is a valid abuse.ch key from "
+                "https://auth.abuse.ch/)"
+            )
+        raise FetchError(self._redact(message)) from None
+
+    def _redact(self, text: str) -> str:
+        if self._abusech_key:
+            return text.replace(self._abusech_key, "<auth-key>")
+        return text
 
 
 def _conditional_headers(state: CategoryState) -> dict[str, str]:

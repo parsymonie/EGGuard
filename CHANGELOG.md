@@ -6,8 +6,40 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-06-18
+
+### Added
+
+- Multi-source feeds: the catalogue is no longer UT1-only. A `Category` now
+  carries a `source` (which namespaces its file/rule names as
+  `<source>-<name>`) and a feed format, and the parser handles hosts-format
+  lists in addition to UT1 tarballs.
+- abuse.ch feeds: `urlhaus` (active malware hosts, ~600 domains) and
+  `threatfox` (malware-IOC domains across many families, ~44,000), both `deny`
+  by default and installable like any other category. They need a free Auth-Key
+  (`abusech_auth_key` in config, or the `EGGUARD_ABUSECH_AUTH_KEY` env var when
+  you'd rather keep the secret off disk). The key is sent as the `Auth-Key` HTTP
+  header (never in a URL) and is redacted from logs/errors. Blank or placeholder
+  keys are treated as unset, so installing an abuse.ch feed without a key
+  reports that one is needed instead of failing on the download. A feed can name
+  an absolute download URL, so feeds on different abuse.ch hosts work.
+- abuse.ch licensing is now stated accurately: the data is **not** open-licensed
+  (unlike UT1's CC BY-SA 4.0) — under the abuse.ch / Spamhaus terms it is free
+  for non-commercial use but commercial use may require a paid subscription, and
+  redistribution/derivatives are restricted. NOTICE and the README spell this
+  out, and `egguard install` prints a one-line terms reminder when an abuse.ch
+  feed is installed. EGGuard never bundles the data; it is fetched at runtime
+  with the operator's own Auth-Key using conditional requests.
+- Both `egguard list` and the `select` picker now show a SOURCE column
+  (`UT1` / `abuse.ch`) so it is clear which feed each category comes from; the
+  picker only adds the column when more than one source is present, and shows a
+  column header.
+
 ### Changed
 
+- Every run now reports how much was loaded: a `loaded N domains across M
+  rules` line, and `rules` / `domains` totals in the one-line JSON summary (the
+  picker's done screen shows the domain total too).
 - Require Python **3.10+** (`requires-python = ">=3.10"`). The dataclasses use
   `slots=True`, which needs 3.10, so 3.9 never actually worked; the CI matrix
   drops 3.9 accordingly.
@@ -110,7 +142,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Apache-2.0 license for the code; `NOTICE` carrying the upstream CC BY-SA 4.0
   attribution for the UT1 data.
 
-[Unreleased]: https://github.com/parsymonie/egguard/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/parsymonie/egguard/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/parsymonie/egguard/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/parsymonie/egguard/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/parsymonie/egguard/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/parsymonie/egguard/compare/v1.0.0...v2.0.0

@@ -16,6 +16,15 @@
 # air-gapped deployments — rsync rsync://ftp.ut-capitole.fr/blacklist).
 base_url: "http://dsi.ut-capitole.fr/blacklists/download"
 
+# abuse.ch feeds (e.g. the `urlhaus` category) need a FREE Auth-Key from
+# https://auth.abuse.ch/ (confirm the account's email, or downloads 403). The
+# key is sent as the `Auth-Key` HTTP header, never in a URL. Without a key the
+# feeds are skipped. To keep the secret off disk, leave this commented and
+# export EGGUARD_ABUSECH_AUTH_KEY instead (this config value wins when both
+# are set).
+# abusech_auth_key: "your-abuse-ch-auth-key"
+# abusech_base_url: "https://urlhaus.abuse.ch/downloads"
+
 
 # === Output paths (inside the toolbox container) ============================
 
@@ -121,4 +130,4 @@ min_domains: 1
 
 # User-Agent sent upstream. Please keep attribution so the UT1 maintainers can
 # see who consumes their feed.
-user_agent: "EGGuard/1.0 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
+user_agent: "EGGuard/2.0 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"

@@ -7,6 +7,7 @@ target the EnforceGate vX toolbox sidecar's shared-volume layout.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -29,7 +30,27 @@ DEFAULT_POLICY_PREFIX = "60"
 DEFAULT_TIMEOUT = 120
 DEFAULT_RETRIES = 3
 DEFAULT_MIN_DOMAINS = 1
-DEFAULT_USER_AGENT = "EGGuard/2.1 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
+DEFAULT_USER_AGENT = "EGGuard/2.2 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
+
+# abuse.ch URLhaus exports require a free Auth-Key (https://auth.abuse.ch/),
+# sent as the `Auth-Key` HTTP header (so it never appears in a URL). Leave
+# abusech_auth_key empty to disable the abuse.ch feeds.
+DEFAULT_ABUSECH_BASE_URL = "https://urlhaus.abuse.ch/downloads"
+
+# Env var used as a fallback when the config file carries no abuse.ch key, so
+# the secret can stay out of config.yaml on disk.
+ENV_ABUSECH_AUTH_KEY = "EGGUARD_ABUSECH_AUTH_KEY"
+
+# Example placeholders from our docs/config; treat these as "no key set" so the
+# user gets a clear "need an Auth-Key" message instead of a failed download.
+_ABUSECH_KEY_PLACEHOLDERS = frozenset(
+    {
+        "your-abuse-ch-auth-key",
+        "your-auth-key",
+        "your-real-auth-key",
+        "changeme",
+    }
+)
 
 
 class ConfigError(ValueError):
@@ -60,7 +81,17 @@ class Config:
     include: list[str] = field(default_factory=list)
     skip: list[str] = field(default_factory=list)
 
+    # abuse.ch feeds. An empty auth key disables them.
+    abusech_base_url: str = DEFAULT_ABUSECH_BASE_URL
+    abusech_auth_key: str = ""
+
     def __post_init__(self) -> None:
+        # An explicit key in the config file wins; otherwise fall back to the
+        # environment so the secret need not live on disk.
+        if not self.abusech_auth_key:
+            self.abusech_auth_key = _clean_auth_key(
+                os.environ.get(ENV_ABUSECH_AUTH_KEY, "")
+            )
         if not _is_two_digit_prefix(self.policy_prefix):
             raise ConfigError(
                 f"policy_prefix must be a two-digit string, got {self.policy_prefix!r}"
@@ -114,6 +145,10 @@ class Config:
             actions=_parse_actions(raw.get("actions"), source),
             include=_parse_str_list(raw.get("include"), "include", source),
             skip=_parse_str_list(raw.get("skip"), "skip", source),
+            abusech_base_url=str(
+                raw.get("abusech_base_url", DEFAULT_ABUSECH_BASE_URL)
+            ),
+            abusech_auth_key=_clean_auth_key(raw.get("abusech_auth_key", "")),
         )
         return cfg
 
@@ -162,3 +197,11 @@ def _parse_str_list(value: Any, key: str, source: Path) -> list[str]:
     ):
         raise ConfigError(f"{source}: '{key}' must be a list of strings")
     return list(value)
+
+
+def _clean_auth_key(value: Any) -> str:
+    """Return the auth key, or '' if it is blank or a known placeholder."""
+    key = str(value).strip()
+    if key.lower().replace("_", "-") in _ABUSECH_KEY_PLACEHOLDERS:
+        return ""
+    return key

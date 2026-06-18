@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from . import __version__
 from . import categories as catalogue
-from .categories import Action, Category
+from .categories import Action, Category, source_label
 from .config import Config, ConfigError
 from .engine import EngineBridge, get_bridge
 from .fetcher import Fetcher
@@ -172,6 +172,9 @@ def _run(argv: list[str] | None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s %(message)s",
     )
+    # urllib3 logs full request URLs at DEBUG, which would leak the abuse.ch
+    # auth key embedded in export URLs; keep it quiet.
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
 
     # No subcommand, or the `help` command: show help, do nothing else.
     if args.command in (None, "help"):
@@ -221,11 +224,17 @@ def _current_actions(cfg: Config, store: StateStore) -> dict[str, Action]:
 def _cmd_list(cfg: Config) -> int:
     store = StateStore(cfg.state_dir)
     actions = _current_actions(cfg, store)
-    width = max(len(c.name) for c in catalogue.CATALOGUE)
+    name_width = max(len(c.name) for c in catalogue.CATALOGUE)
+    src_width = max(len(source_label(c.source)) for c in catalogue.CATALOGUE)
+    print(f"  {'SOURCE':<{src_width}}  {'CATEGORY':<{name_width}}  ACTION")
     for category in catalogue.CATALOGUE:
         mark = "*" if store.exists(category.name) else " "
         action = actions[category.name].value
-        print(f"{mark} {category.name:<{width}}  {action}")
+        src = source_label(category.source)
+        print(
+            f"{mark} {src:<{src_width}}  "
+            f"{category.name:<{name_width}}  {action}"
+        )
     print("\n* = installed")
     return EXIT_OK
 
@@ -272,12 +281,21 @@ def _build_pipeline(
         timeout=cfg.timeout,
         retries=cfg.retries,
         user_agent=cfg.user_agent,
+        abusech_base_url=cfg.abusech_base_url,
+        abusech_auth_key=cfg.abusech_auth_key,
     )
     return bridge, fetcher
 
 
 def _report_summary(summary: RefreshSummary, *, dry_run: bool) -> int:
     """Log the dry-run / failure tail of a run and return its exit code."""
+    if summary.loaded:
+        logging.info(
+            "loaded %s domains across %d rule%s",
+            f"{summary.total_domains:,}",
+            len(summary.loaded),
+            "" if len(summary.loaded) == 1 else "s",
+        )
     if dry_run:
         logging.info(
             "[dry-run] %d categor%s would change",
@@ -327,6 +345,12 @@ def _cmd_install(cfg: Config, args: argparse.Namespace) -> int:
     except KeyError as exc:
         logging.critical("unknown category: %s", exc.args[0])
         return EXIT_FATAL
+    if any(c.source == "abusech" for c in selected):
+        logging.info(
+            "note: abuse.ch feeds are governed by "
+            "https://abuse.ch/terms-of-use/ — free for non-commercial use; "
+            "commercial use may require a paid subscription"
+        )
     return _do_refresh(
         cfg,
         selected,
@@ -425,7 +449,8 @@ def _summary_line(summary: RefreshSummary, *, dry_run: bool) -> str:
         note = "no changes"
     return (
         f"{len(summary.updated)} updated, {unchanged} unchanged, "
-        f"{len(summary.failed)} failed | {note}"
+        f"{len(summary.failed)} failed | {summary.total_domains:,} domains "
+        f"| {note}"
     )
 
 

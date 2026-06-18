@@ -7,6 +7,7 @@ import tarfile
 
 import pytest
 
+from egguard.categories import FMT_HOSTFILE
 from egguard.parser import ParseError, extract_domains
 from tests.conftest import make_tarball
 
@@ -15,6 +16,29 @@ def test_extracts_and_normalises_domains(sample_tarball: bytes) -> None:
     domains = extract_domains(sample_tarball)
     # Lowercased, trimmed, comments/blanks dropped, de-duplicated, sorted.
     assert domains == ["bad-site.net", "dup.com", "example.com", "spaced.org"]
+
+
+def test_parses_hostfile_format() -> None:
+    content = b"\n".join(
+        [
+            b"# abuse.ch URLhaus hostfile",
+            b"0.0.0.0 Bad-Site.NET",  # IP + host, mixed case
+            b"127.0.0.1 evil.example",
+            b"bare-domain.test",  # bare host, no IP
+            b"",  # blank
+            b"0.0.0.0 evil.example",  # duplicate host
+        ]
+    )
+    assert extract_domains(content, FMT_HOSTFILE) == [
+        "bad-site.net",
+        "bare-domain.test",
+        "evil.example",
+    ]
+
+
+def test_hostfile_size_cap() -> None:
+    with pytest.raises(ParseError, match="implausibly large"):
+        extract_domains(b"x" * (513 * 1024 * 1024), FMT_HOSTFILE)
 
 
 def test_deduplicates() -> None:

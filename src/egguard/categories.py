@@ -35,27 +35,60 @@ class Action(enum.Enum):
     PERMIT = "permit"
 
 
+# Feed formats — how a downloaded feed is parsed into domains.
+FMT_UT1_TARBALL = (
+    "ut1-tarball"  # UT1's <category>.tar.gz with a `domains` member
+)
+FMT_HOSTFILE = "hostfile"  # a hosts-format list ("0.0.0.0 domain" per line)
+
+# Friendly display names for sources, used by `list` and the picker.
+_SOURCE_LABELS = {"ut1": "UT1", "abusech": "abuse.ch"}
+
+
+def source_label(source: str) -> str:
+    """Return a human-friendly name for a feed *source* (e.g. ``abuse.ch``)."""
+    return _SOURCE_LABELS.get(source, source)
+
+
 @dataclass(frozen=True, slots=True)
 class Category:
-    """A single UT1 category and its suggested handling."""
+    """A single feed (a UT1 category, or another source) and its handling.
+
+    ``source`` namespaces the feed (``ut1``, ``abusech``); it prefixes the
+    generated file/rule names so feeds from different sources never collide.
+    """
 
     name: str
     description: str
     disposition: Action
+    source: str = "ut1"
+    fmt: str = FMT_UT1_TARBALL
+    # Source-specific download path; defaults to ``name`` (UT1 uses the name).
+    remote: str = ""
+
+    @property
+    def fetch_path(self) -> str:
+        """The path/identifier used to build this feed's download URL."""
+        return self.remote or self.name
+
+    @property
+    def slug(self) -> str:
+        """Stable identifier used for file names and the rule name."""
+        return f"{self.source}-{self.name}"
 
     @property
     def list_filename(self) -> str:
-        """File name used for this category's domain list."""
-        return f"ut1-{self.name}.list"
+        """File name used for this feed's domain list."""
+        return f"{self.slug}.list"
 
     def policy_filename(self, prefix: str) -> str:
-        """File name used for this category's generated policy."""
-        return f"{prefix}-ut1-{self.name}.policy"
+        """File name used for this feed's generated policy."""
+        return f"{prefix}-{self.slug}.policy"
 
 
 # --------------------------------------------------------------------------- #
-# The full catalogue — 65 categories as published by UT1 (2026).
-# Descriptions are concise English renderings of the upstream French text.
+# The full catalogue — the UT1 categories plus a few non-UT1 feeds (abuse.ch).
+# UT1 descriptions are concise English renderings of the upstream French text.
 # --------------------------------------------------------------------------- #
 _D = Action
 
@@ -156,6 +189,25 @@ CATALOGUE: tuple[Category, ...] = (
     Category("warez", "Warez — pirated software and media", _D.DENY),
     Category("webhosting", "Web-hosting services", _D.WARN),
     Category("webmail", "Webmail services", _D.WARN),
+    # --- abuse.ch feeds (need a free Auth-Key; see config.abusech_auth_key) -- #
+    # ``remote`` is a path under ``abusech_base_url`` (URLhaus), or an absolute
+    # URL when the feed lives on a different abuse.ch host (ThreatFox).
+    Category(
+        "urlhaus",
+        "abuse.ch URLhaus — active malware-distribution hosts",
+        _D.DENY,
+        source="abusech",
+        fmt=FMT_HOSTFILE,
+        remote="hostfile",
+    ),
+    Category(
+        "threatfox",
+        "abuse.ch ThreatFox — malware IOC domains (many families)",
+        _D.DENY,
+        source="abusech",
+        fmt=FMT_HOSTFILE,
+        remote="https://threatfox.abuse.ch/downloads/hostfile",
+    ),
 )
 
 # Fast lookup by name.

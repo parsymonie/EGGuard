@@ -10,6 +10,31 @@ from egguard.categories import Action
 from egguard.config import Config, ConfigError
 
 
+def test_abusech_placeholder_key_treated_as_unset(tmp_path: Path) -> None:
+    placeholder = tmp_path / "p.yaml"
+    placeholder.write_text(
+        'abusech_auth_key: "YOUR_AUTH_KEY"\n', encoding="utf-8"
+    )
+    assert Config.load(placeholder).abusech_auth_key == ""
+
+    real = tmp_path / "r.yaml"
+    real.write_text('abusech_auth_key: "deadbeef123"\n', encoding="utf-8")
+    assert Config.load(real).abusech_auth_key == "deadbeef123"
+
+
+def test_abusech_key_from_env_when_config_blank(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("EGGUARD_ABUSECH_AUTH_KEY", "envkey42")
+    # No config file: the env key is used.
+    assert Config.load(tmp_path / "none.yaml").abusech_auth_key == "envkey42"
+
+    # A real key in the file wins over the env.
+    cfg = tmp_path / "c.yaml"
+    cfg.write_text('abusech_auth_key: "filekey99"\n', encoding="utf-8")
+    assert Config.load(cfg).abusech_auth_key == "filekey99"
+
+
 def test_defaults_when_missing(tmp_path: Path) -> None:
     cfg = Config.load(tmp_path / "does-not-exist.yaml")
     assert cfg.policy_prefix == "60"

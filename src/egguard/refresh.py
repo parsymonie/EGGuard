@@ -65,6 +65,16 @@ class RefreshSummary:
     def changed(self) -> bool:
         return bool(self.updated)
 
+    @property
+    def loaded(self) -> list[CategoryResult]:
+        """Categories that produced a list this run (updated or unchanged)."""
+        return [r for r in self.results if r.outcome is not Outcome.FAILED]
+
+    @property
+    def total_domains(self) -> int:
+        """Total domains across every loaded category (one rule per category)."""
+        return sum(r.domain_count for r in self.loaded)
+
     def as_event(self, *, dry_run: bool) -> str:
         """Render a one-line JSON summary for logs / SIEM ingestion."""
         return json_event(
@@ -72,6 +82,8 @@ class RefreshSummary:
             total=len(self.results),
             updated=len(self.updated),
             failed=len(self.failed),
+            rules=len(self.loaded),
+            domains=self.total_domains,
             reloaded=self.reloaded,
             dry_run=dry_run,
             elapsed_s=round(self.elapsed_seconds, 1),
@@ -219,7 +231,7 @@ class Refresher:
     def _refresh_one(self, category: Category) -> CategoryResult:
         state = self._store.load(category.name)
         try:
-            fetched = self._fetcher.fetch(category.name, state)
+            fetched = self._fetcher.fetch(category, state)
         except NotModified:
             return CategoryResult(
                 category.name,
@@ -242,7 +254,7 @@ class Refresher:
             )
 
         try:
-            domains = extract_domains(fetched.content)
+            domains = extract_domains(fetched.content, category.fmt)
         except ParseError as exc:
             return CategoryResult(
                 category.name, Outcome.FAILED, message=str(exc)
