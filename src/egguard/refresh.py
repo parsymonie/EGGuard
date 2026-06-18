@@ -187,11 +187,14 @@ class Refresher:
         self,
         selected: list[Category],
         on_progress: Callable[[int, int, CategoryResult], None] | None = None,
+        *,
+        quiet: bool = False,
     ) -> RefreshSummary:
         """Refresh every category in *selected* and reload once if needed.
 
         *on_progress* (if given) is called as ``(done, total, result)`` after
-        each category, so a UI can drive a progress bar.
+        each category, so a UI can drive a progress bar. Set *quiet* to skip
+        the one-line JSON summary log (e.g. when a UI owns the screen).
         """
         summary = RefreshSummary()
         started = time.monotonic()
@@ -209,7 +212,8 @@ class Refresher:
         if summary.changed and not self._dry_run:
             summary.reloaded = self._reload()
 
-        self._bridge.log(summary.as_event(dry_run=self._dry_run))
+        if not quiet:
+            self._bridge.log(summary.as_event(dry_run=self._dry_run))
         return summary
 
     def _refresh_one(self, category: Category) -> CategoryResult:

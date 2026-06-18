@@ -457,7 +457,7 @@ def _cmd_select(cfg: Config, args: argparse.Namespace) -> int:
             progress(done, total, _status_line(result))
 
         summary = refresher.run(
-            _select_named(selection.names), on_progress=on_progress
+            _select_named(selection.names), on_progress=on_progress, quiet=True
         )
         summary_box.append(summary)
         return _summary_line(summary, dry_run=args.dry_run)

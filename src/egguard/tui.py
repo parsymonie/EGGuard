@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import contextlib
 import curses
+import io
 import locale
 import logging
 import os
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -244,19 +246,24 @@ def _run_install(
         )
 
     report(0, total, "")
-    # Curses owns the screen, so keep the install's output off it: disable all
-    # Python logging (EGGuard's own and the toolbox library's structured logs,
-    # whatever stream they target) and redirect stray stderr to /dev/null.
+    # Curses draws via the C-level terminal, so keep the install's output off
+    # the screen on every layer: disable Python logging, swap sys.stdout/stderr
+    # (catches the toolbox library's print-style writes), and redirect the
+    # stderr fd for anything C-level.
     devnull = os.open(os.devnull, os.O_WRONLY)
-    saved_stderr = os.dup(2)
+    saved_stderr_fd = os.dup(2)
+    saved_out, saved_err = sys.stdout, sys.stderr
     logging.disable(logging.CRITICAL)
     try:
+        sys.stdout = io.StringIO()
+        sys.stderr = io.StringIO()
         os.dup2(devnull, 2)
         summary = installer(selection, report)
     finally:
         logging.disable(logging.NOTSET)
-        os.dup2(saved_stderr, 2)
-        os.close(saved_stderr)
+        sys.stdout, sys.stderr = saved_out, saved_err
+        os.dup2(saved_stderr_fd, 2)
+        os.close(saved_stderr_fd)
         os.close(devnull)
 
     _draw_progress(
