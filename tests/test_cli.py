@@ -32,6 +32,7 @@ def test_summary_line() -> None:
     assert "1 updated" in line
     assert "1 unchanged" in line
     assert "0 failed" in line
+    assert "1 domains" in line
     assert "engine reloaded" in line
 
 

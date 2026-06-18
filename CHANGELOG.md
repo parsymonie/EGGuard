@@ -22,6 +22,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Every run now reports how much was loaded: a `loaded N domains across M
+  rules` line, and `rules` / `domains` totals in the one-line JSON summary (the
+  picker's done screen shows the domain total too).
 - Require Python **3.10+** (`requires-python = ">=3.10"`). The dataclasses use
   `slots=True`, which needs 3.10, so 3.9 never actually worked; the CI matrix
   drops 3.9 accordingly.

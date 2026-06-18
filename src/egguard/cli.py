@@ -283,6 +283,13 @@ def _build_pipeline(
 
 def _report_summary(summary: RefreshSummary, *, dry_run: bool) -> int:
     """Log the dry-run / failure tail of a run and return its exit code."""
+    if summary.loaded:
+        logging.info(
+            "loaded %s domains across %d rule%s",
+            f"{summary.total_domains:,}",
+            len(summary.loaded),
+            "" if len(summary.loaded) == 1 else "s",
+        )
     if dry_run:
         logging.info(
             "[dry-run] %d categor%s would change",
@@ -430,7 +437,8 @@ def _summary_line(summary: RefreshSummary, *, dry_run: bool) -> str:
         note = "no changes"
     return (
         f"{len(summary.updated)} updated, {unchanged} unchanged, "
-        f"{len(summary.failed)} failed | {note}"
+        f"{len(summary.failed)} failed | {summary.total_domains:,} domains "
+        f"| {note}"
     )
 
 
