@@ -112,6 +112,11 @@ class Fetcher:
             f"{category.name}: download failed after {self._retries} "
             f"attempt(s): {last_exc}"
         )
+        if category.source == "abusech":
+            message += (
+                " (verify 'abusech_auth_key' is a valid abuse.ch key from "
+                "https://auth.abuse.ch/)"
+            )
         raise FetchError(self._redact(message)) from None
 
     def _redact(self, text: str) -> str:

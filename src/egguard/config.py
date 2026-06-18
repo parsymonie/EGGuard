@@ -36,6 +36,17 @@ DEFAULT_USER_AGENT = "EGGuard/2.1 (EnforceGate vX toolbox; +https://github.com/p
 # abuse.ch feeds. Verify the exact base/export path against your own account.
 DEFAULT_ABUSECH_BASE_URL = "https://urlhaus-api.abuse.ch/v2/files/exports"
 
+# Example placeholders from our docs/config; treat these as "no key set" so the
+# user gets a clear "need an Auth-Key" message instead of a failed download.
+_ABUSECH_KEY_PLACEHOLDERS = frozenset(
+    {
+        "your-abuse-ch-auth-key",
+        "your-auth-key",
+        "your-real-auth-key",
+        "changeme",
+    }
+)
+
 
 class ConfigError(ValueError):
     """Raised when a configuration file is structurally invalid."""
@@ -126,7 +137,7 @@ class Config:
             abusech_base_url=str(
                 raw.get("abusech_base_url", DEFAULT_ABUSECH_BASE_URL)
             ),
-            abusech_auth_key=str(raw.get("abusech_auth_key", "")),
+            abusech_auth_key=_clean_auth_key(raw.get("abusech_auth_key", "")),
         )
         return cfg
 
@@ -175,3 +186,11 @@ def _parse_str_list(value: Any, key: str, source: Path) -> list[str]:
     ):
         raise ConfigError(f"{source}: '{key}' must be a list of strings")
     return list(value)
+
+
+def _clean_auth_key(value: Any) -> str:
+    """Return the auth key, or '' if it is blank or a known placeholder."""
+    key = str(value).strip()
+    if key.lower().replace("_", "-") in _ABUSECH_KEY_PLACEHOLDERS:
+        return ""
+    return key

@@ -10,6 +10,18 @@ from egguard.categories import Action
 from egguard.config import Config, ConfigError
 
 
+def test_abusech_placeholder_key_treated_as_unset(tmp_path: Path) -> None:
+    placeholder = tmp_path / "p.yaml"
+    placeholder.write_text(
+        'abusech_auth_key: "YOUR_AUTH_KEY"\n', encoding="utf-8"
+    )
+    assert Config.load(placeholder).abusech_auth_key == ""
+
+    real = tmp_path / "r.yaml"
+    real.write_text('abusech_auth_key: "deadbeef123"\n', encoding="utf-8")
+    assert Config.load(real).abusech_auth_key == "deadbeef123"
+
+
 def test_defaults_when_missing(tmp_path: Path) -> None:
     cfg = Config.load(tmp_path / "does-not-exist.yaml")
     assert cfg.policy_prefix == "60"
