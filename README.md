@@ -1,15 +1,16 @@
 # EGGuard
 
-**Sync the [Université Toulouse Capitole (UT1)][ut1] blacklist categories into [EnforceGate vX][eg].**
+**Sync the [Université Toulouse Capitole (UT1)][ut1] blacklist categories and [abuse.ch][abusech] malware feeds into [EnforceGate vX][eg].**
 
 EGGuard is a small, dependency-light Python tool that runs inside the
-EnforceGate vX **toolbox sidecar**. On each run it downloads every UT1
-blacklist category, converts each one into an EnforceGate domain list plus a
-matching `.policy` rule, and triggers a single live engine reload.
+EnforceGate vX **toolbox sidecar**. On each run it downloads the domain feeds
+you select, converts each one into an EnforceGate domain list plus a matching
+`.policy` rule, and triggers a single live engine reload.
 
 It turns the UT1 corpus — ~65 categories spanning adult content, malware,
-phishing, gambling, social networks, VPN/proxy, redirectors and more — into
-ready-to-enforce category filtering, on-box, with no cloud lookups.
+phishing, gambling, social networks, VPN/proxy, redirectors and more — plus
+abuse.ch's URLhaus and ThreatFox malware feeds into ready-to-enforce category
+filtering, on-box, with no cloud lookups.
 
 ```
 $ egguard update

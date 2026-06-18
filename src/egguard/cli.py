@@ -68,7 +68,7 @@ def _action_arg(value: str) -> Action:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="egguard",
-        description="Sync UT1 Capitole blacklist categories into EnforceGate vX.",
+        description="Sync UT1 Capitole and abuse.ch domain blacklists into EnforceGate vX.",
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
