@@ -201,12 +201,15 @@ class Refresher:
         on_progress: Callable[[int, int, CategoryResult], None] | None = None,
         *,
         quiet: bool = False,
+        on_reload: Callable[[], None] | None = None,
     ) -> RefreshSummary:
         """Refresh every category in *selected* and reload once if needed.
 
         *on_progress* (if given) is called as ``(done, total, result)`` after
-        each category, so a UI can drive a progress bar. Set *quiet* to skip
-        the one-line JSON summary log (e.g. when a UI owns the screen).
+        each category, so a UI can drive a progress bar. *on_reload* (if given)
+        is called just before the engine reload starts, so a UI can show that
+        the (potentially slow) reload is under way. Set *quiet* to skip the
+        one-line JSON summary log (e.g. when a UI owns the screen).
         """
         summary = RefreshSummary()
         started = time.monotonic()
@@ -219,10 +222,23 @@ class Refresher:
             if on_progress is not None:
                 on_progress(index, total, result)
 
-        summary.elapsed_seconds = time.monotonic() - started
-
         if summary.changed and not self._dry_run:
+            # The reload blocks while the engine re-reads its ruleset, which can
+            # take a few seconds; announce it so the run never looks stuck. Only
+            # when a real engine is attached — the local fallback logs its own
+            # "skipped" line and there is nothing to wait for.
+            reloading = self._bridge.available
+            if reloading:
+                _log.info(
+                    "reloading the engine (this can take a few seconds)..."
+                )
+                if on_reload is not None:
+                    on_reload()
             summary.reloaded = self._reload()
+            if reloading and summary.reloaded:
+                _log.info("engine reloaded")
+
+        summary.elapsed_seconds = time.monotonic() - started
 
         if not quiet:
             self._bridge.log(summary.as_event(dry_run=self._dry_run))

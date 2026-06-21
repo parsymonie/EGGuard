@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- The engine reload now reports that it is happening: the CLI logs `reloading
+  the engine (this can take a few seconds)...` and `engine reloaded`, and the
+  `select` picker shows a `reloading the engine — please wait...` line. The
+  reload blocks while the engine recompiles its ruleset, so without this the run
+  looked stuck. Only shown when a real engine is attached.
+
 ### Fixed
 
 - On terminals with only 8/16 colours (e.g. `TERM=xterm`), the picker's pink

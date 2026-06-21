@@ -158,6 +158,38 @@ def test_action_override_wins(sample_tarball: bytes, tmp_path: Path) -> None:
     assert "action: deny" in text
 
 
+def test_run_announces_reload_only_when_engine_attached(
+    sample_tarball: bytes, tmp_path: Path
+) -> None:
+    # The on_reload hook lets a UI show the (slow) reload is under way — but
+    # only when a real engine is attached; the local fallback has nothing to
+    # wait for.
+    calls: list[str] = []
+
+    attached = _CapturingBridge()  # available = True
+    Refresher(
+        Config(),
+        cast(Fetcher, _OneShotFetcher(sample_tarball)),
+        StateStore(tmp_path / "a"),
+        attached,
+    ).run([get("adult")], on_reload=lambda: calls.append("reload"))
+    assert calls == ["reload"]
+
+    calls.clear()
+    local = _CapturingBridge()
+    local.available = False
+    summary = Refresher(
+        Config(),
+        cast(Fetcher, _OneShotFetcher(sample_tarball)),
+        StateStore(tmp_path / "b"),
+        local,
+    ).run([get("adult")], on_reload=lambda: calls.append("reload"))
+    assert calls == []  # nothing changed on screen for a no-op reload
+    assert (
+        summary.changed
+    )  # the category still updated; only the reload differs
+
+
 def test_write_oserror_fails_only_that_category(
     sample_tarball: bytes, tmp_path: Path
 ) -> None:

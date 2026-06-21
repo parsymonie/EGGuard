@@ -478,11 +478,19 @@ def _cmd_select(cfg: Config, args: argparse.Namespace) -> int:
             actions=selection.actions,
         )
 
-        def on_progress(done: int, total: int, result: CategoryResult) -> None:
-            progress(done, total, _status_line(result))
+        total = len(selection.names)
+
+        def on_progress(done: int, total_: int, result: CategoryResult) -> None:
+            progress(done, total_, _status_line(result))
+
+        def on_reload() -> None:
+            progress(total, total, "reloading the engine — please wait...")
 
         summary = refresher.run(
-            _select_named(selection.names), on_progress=on_progress, quiet=True
+            _select_named(selection.names),
+            on_progress=on_progress,
+            quiet=True,
+            on_reload=on_reload,
         )
         summary_box.append(summary)
         return _summary_line(summary, dry_run=args.dry_run)
