@@ -30,7 +30,7 @@ DEFAULT_POLICY_PREFIX = "60"
 DEFAULT_TIMEOUT = 120
 DEFAULT_RETRIES = 3
 DEFAULT_MIN_DOMAINS = 1
-DEFAULT_USER_AGENT = "EGGuard/2.3 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
+DEFAULT_USER_AGENT = "EGGuard/2.4 (EnforceGate vX toolbox; +https://github.com/parsymonie/egguard)"
 
 # abuse.ch URLhaus exports require a free Auth-Key (https://auth.abuse.ch/),
 # sent as the `Auth-Key` HTTP header (so it never appears in a URL). Leave
