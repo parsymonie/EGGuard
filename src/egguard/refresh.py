@@ -249,12 +249,8 @@ class Refresher:
         try:
             fetched = self._fetcher.fetch(category, state)
         except NotModified:
-            return CategoryResult(
-                category.name,
-                Outcome.UNCHANGED,
-                state.domain_count,
-                "304 Not Modified",
-            )
+            # Content is current, but the operator may have picked a new action.
+            return self._apply_action_change(category, state)
         except FetchError as exc:
             return CategoryResult(
                 category.name, Outcome.FAILED, message=str(exc)
@@ -262,12 +258,7 @@ class Refresher:
 
         sha256 = hashlib.sha256(fetched.content).hexdigest()
         if sha256 == state.sha256:
-            return CategoryResult(
-                category.name,
-                Outcome.UNCHANGED,
-                state.domain_count,
-                "content unchanged",
-            )
+            return self._apply_action_change(category, state)
 
         try:
             domains = extract_domains(fetched.content, category.fmt)
@@ -319,6 +310,63 @@ class Refresher:
             )
 
         return CategoryResult(category.name, Outcome.UPDATED, len(domains))
+
+    def _apply_action_change(
+        self, category: Category, state: CategoryState
+    ) -> CategoryResult:
+        """Handle an unchanged-content category whose action may have changed.
+
+        The download is current, so the ``.list`` stays as is. But if the
+        operator picked a new action (e.g. ``deny`` -> ``aup`` in the picker),
+        the on-disk ``.policy`` is stale: rewrite just the policy with the new
+        action, persist it, and report UPDATED so the engine reloads to apply
+        it. Otherwise nothing changed.
+        """
+        installed = _disposition_or_none(state.action)
+        override = self._actions.get(category.name)
+        # What the policy on disk was last written with vs. what is wanted now.
+        disk_action = resolve_action(category, self._cfg, installed=installed)
+        new_action = resolve_action(
+            category, self._cfg, override=override, installed=installed
+        )
+        if new_action == disk_action:
+            return CategoryResult(
+                category.name,
+                Outcome.UNCHANGED,
+                state.domain_count,
+                "content unchanged",
+            )
+        if self._dry_run:
+            return CategoryResult(
+                category.name,
+                Outcome.UPDATED,
+                state.domain_count,
+                f"action -> {new_action.value}",
+            )
+
+        list_path = self._cfg.lists_dir / category.list_filename
+        policy_path = self._cfg.policies_dir / category.policy_filename(
+            self._cfg.policy_prefix
+        )
+        try:
+            self._bridge.write_policy(
+                policy_path,
+                render_policy(category, list_path=list_path, action=new_action),
+            )
+        except OSError as exc:
+            return CategoryResult(
+                category.name, Outcome.FAILED, message=str(exc)
+            )
+        if override is not None:
+            state.action = override.value
+        # Only the action changed, not the content, so keep last_success.
+        self._store.save(category.name, state, stamp=False)
+        return CategoryResult(
+            category.name,
+            Outcome.UPDATED,
+            state.domain_count,
+            f"action -> {new_action.value}",
+        )
 
     def _write(
         self, category: Category, domains: list[str], action: Action

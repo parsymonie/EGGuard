@@ -77,9 +77,17 @@ class StateStore:
             action=str(data.get("action", "")),
         )
 
-    def save(self, category: str, state: CategoryState) -> None:
-        """Persist *state* for *category*, stamping the success time."""
-        state.last_success = time.time()
+    def save(
+        self, category: str, state: CategoryState, *, stamp: bool = True
+    ) -> None:
+        """Persist *state* for *category*.
+
+        Stamps the success time by default. Pass ``stamp=False`` to keep the
+        existing ``last_success`` (e.g. when only the action changed, not the
+        list content).
+        """
+        if stamp:
+            state.last_success = time.time()
         self._dir.mkdir(parents=True, exist_ok=True)
         tmp = self._path(category).with_suffix(".json.tmp")
         tmp.write_text(json.dumps(asdict(state), indent=2), encoding="utf-8")

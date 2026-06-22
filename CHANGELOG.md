@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Changing the action of an already-installed list (e.g. `deny` -> `aup`) when
+  the list content had not changed was silently dropped: the `.policy` kept the
+  old action and the picker still showed the old one on return. EGGuard now
+  rewrites the policy with the new action even when the content is unchanged,
+  persists it, and reports the category as updated so the engine reloads. The
+  `.list` is left untouched and its last-updated time is preserved.
+
 ## [2.5.0] — 2026-06-18
 
 ### Added

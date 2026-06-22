@@ -158,6 +158,61 @@ def test_action_override_wins(sample_tarball: bytes, tmp_path: Path) -> None:
     assert "action: deny" in text
 
 
+def test_action_change_rewrites_policy_on_unchanged_content(
+    sample_tarball: bytes, tmp_path: Path
+) -> None:
+    # Reproduces the picker bug: changing an installed list's action (deny ->
+    # aup) when the content has not changed must still rewrite the policy and
+    # persist the new action, and report UPDATED so the engine reloads.
+    bridge = _CapturingBridge()
+    store = StateStore(tmp_path)
+
+    Refresher(
+        Config(),
+        cast(Fetcher, _OneShotFetcher(sample_tarball)),
+        store,
+        bridge,
+        actions={"press": Action.DENY},
+    ).run([get("press")])
+    assert "action: deny" in next(iter(bridge.policies.values()))
+    assert store.load("press").action == "deny"
+    installed_at = store.load("press").last_success
+
+    bridge.policies.clear()
+    summary = Refresher(
+        Config(),
+        cast(Fetcher, _OneShotFetcher(sample_tarball)),
+        store,
+        bridge,
+        actions={"press": Action.AUP},
+    ).run([get("press")])
+
+    assert [r.outcome for r in summary.results] == [Outcome.UPDATED]
+    assert "action: aup" in next(iter(bridge.policies.values()))
+    assert store.load("press").action == "aup"
+    # An action change is not a content change, so the timestamp is preserved.
+    assert store.load("press").last_success == installed_at
+
+
+def test_same_action_on_unchanged_content_stays_unchanged(
+    sample_tarball: bytes, tmp_path: Path
+) -> None:
+    # Re-running with the same action must not rewrite the policy or reload.
+    bridge = _CapturingBridge()
+    store = StateStore(tmp_path)
+    for _ in range(2):
+        summary = Refresher(
+            Config(),
+            cast(Fetcher, _OneShotFetcher(sample_tarball)),
+            store,
+            bridge,
+            actions={"press": Action.DENY},
+        ).run([get("press")])
+
+    assert [r.outcome for r in summary.results] == [Outcome.UNCHANGED]
+    assert not summary.changed
+
+
 def test_run_announces_reload_only_when_engine_attached(
     sample_tarball: bytes, tmp_path: Path
 ) -> None:
