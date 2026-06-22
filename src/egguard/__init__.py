@@ -46,7 +46,7 @@ from .refresh import (
 )
 from .state import CategoryState, StateStore
 
-__version__ = "2.4.0"
+__version__ = "2.5.0"
 __author__ = "parsymonie"
 __url__ = "https://github.com/parsymonie/egguard"
 
