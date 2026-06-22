@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "egguard"
-version = "2.5.0"
+version = "2.5.1"
 description = "Sync UT1 Capitole and abuse.ch domain blacklists into EnforceGate vX."
 readme = "README.md"
 license = "Apache-2.0"

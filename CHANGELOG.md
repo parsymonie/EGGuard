@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.1] — 2026-06-18
+
 ### Fixed
 
 - Changing the action of an already-installed list (e.g. `deny` -> `aup`) when
@@ -189,7 +191,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Apache-2.0 license for the code; `NOTICE` carrying the upstream CC BY-SA 4.0
   attribution for the UT1 data.
 
-[Unreleased]: https://github.com/parsymonie/egguard/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/parsymonie/egguard/compare/v2.5.1...HEAD
+[2.5.1]: https://github.com/parsymonie/egguard/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/parsymonie/egguard/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/parsymonie/egguard/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/parsymonie/egguard/compare/v2.2.0...v2.3.0
