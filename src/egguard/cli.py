@@ -503,6 +503,7 @@ def _cmd_select(cfg: Config, args: argparse.Namespace) -> int:
             progress(done, total_, _status_line(result))
 
         def on_reload() -> None:
+            progress(total, total, "")  # blank line above the reload notice
             progress(total, total, "reloading the engine — please wait...")
 
         summary = refresher.run(
