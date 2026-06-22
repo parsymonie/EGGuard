@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `egguard list` now shows an `UPDATED` column with how long ago each installed
+  list's content last changed (e.g. `3d ago`), from the per-category state that
+  was already recorded.
+
 ## [2.4.0] — 2026-06-18
 
 ### Added

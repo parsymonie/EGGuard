@@ -5,8 +5,26 @@ from __future__ import annotations
 import pytest
 
 from egguard.categories import Action
-from egguard.cli import EXIT_OK, _status_line, _summary_line, build_parser, main
+from egguard.cli import (
+    EXIT_OK,
+    _relative_age,
+    _status_line,
+    _summary_line,
+    build_parser,
+    main,
+)
 from egguard.refresh import CategoryResult, Outcome, RefreshSummary
+
+
+def test_relative_age() -> None:
+    now = 1_000_000_000.0
+    assert _relative_age(0, now) == ""  # never updated
+    assert _relative_age(now - 30, now) == "30s ago"
+    assert _relative_age(now - 90, now) == "1m ago"
+    assert _relative_age(now - 3 * 3600, now) == "3h ago"
+    assert _relative_age(now - 2 * 86400, now) == "2d ago"
+    assert _relative_age(now - 21 * 86400, now) == "3w ago"
+    assert _relative_age(now + 100, now) == "0s ago"  # future clamps to 0
 
 
 def test_status_line_formats_each_outcome() -> None:

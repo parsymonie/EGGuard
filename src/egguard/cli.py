@@ -15,6 +15,7 @@ import argparse
 import logging
 import os
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -221,21 +222,39 @@ def _current_actions(cfg: Config, store: StateStore) -> dict[str, Action]:
     return actions
 
 
+def _relative_age(timestamp: float, now: float) -> str:
+    """Render *timestamp* as a short age like ``3d ago`` (blank if unset)."""
+    if timestamp <= 0:
+        return ""
+    secs = max(0, int(now - timestamp))
+    for size, unit in ((60, "s"), (60, "m"), (24, "h"), (7, "d")):
+        if secs < size:
+            return f"{secs}{unit} ago"
+        secs //= size
+    return f"{secs}w ago"
+
+
 def _cmd_list(cfg: Config) -> int:
     store = StateStore(cfg.state_dir)
     actions = _current_actions(cfg, store)
+    now = time.time()
     name_width = max(len(c.name) for c in catalogue.CATALOGUE)
     src_width = max(len(source_label(c.source)) for c in catalogue.CATALOGUE)
-    print(f"  {'SOURCE':<{src_width}}  {'CATEGORY':<{name_width}}  ACTION")
+    print(
+        f"  {'SOURCE':<{src_width}}  {'CATEGORY':<{name_width}}  "
+        f"{'ACTION':<7}  UPDATED"
+    )
     for category in catalogue.CATALOGUE:
+        state = store.load(category.name)
         mark = "*" if store.exists(category.name) else " "
         action = actions[category.name].value
         src = source_label(category.source)
+        updated = _relative_age(state.last_success, now)
         print(
-            f"{mark} {src:<{src_width}}  "
-            f"{category.name:<{name_width}}  {action}"
+            f"{mark} {src:<{src_width}}  {category.name:<{name_width}}  "
+            f"{action:<7}  {updated}"
         )
-    print("\n* = installed")
+    print("\n* = installed   UPDATED = when the list content last changed")
     return EXIT_OK
 
 
